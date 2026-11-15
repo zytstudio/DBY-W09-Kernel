@@ -1,0 +1,7 @@
+*.tar.gz
+*.tar.gz:Zone.Identifier
+src/
+out/
+toolchain/
+artifacts/*.img
+artifacts/*.gz
