@@ -80,3 +80,35 @@ scripts/flash_boot.sh artifacts/boot_m1.img --yes
 - 本构建与现机 config 的差异：KSU 版本（v3.3.1+ / 32730 vs 管理器 32640）、
   `KPROBES` 来自放开依赖、无 SUSFS（M1 阶段）。
 - 只写 `boot` 分区，绝不碰 `ramdisk`/`dtbo`/`vbmeta`/`userdata`。
+
+## M2/M3 配置与 SUSFS
+
+```sh
+# M2: 容器/Docker 内核能力
+./scripts/configure.sh "$PWD/out/m2" containers
+# M3: 容器 + SUSFS 1.5.5 (SUS_MOUNT/AUTO_ADD 关闭, 兼容 DroidSpaces)
+./scripts/configure.sh "$PWD/out/m3" susfs
+./scripts/build.sh "$PWD/out/m3" Image.gz
+```
+
+SUSFS 集成补丁（相对干净 4.19.157 源码树 / KSU v3.3.0-55）：
+
+```sh
+# 内核侧（含 fs/susfs.c、prctl 分发器、task_struct 字段、Kconfig 依赖）
+patch -p1 -d src/kernel < patches/susfs-kernel.diff
+# KSU 侧（Kconfig 菜单 + ksu.c 里 susfs_init()）
+git -C src/kernel/KernelSU apply ../../patches/ksu-susfs.diff
+```
+
+要点：
+- SUSFS 用户态用 `prctl(0xDEADBEEF, CMD_*, ...)`；当前 KSU 是 ioctl-only，
+  因此在 `kernel/sys.c` 的 prctl 入口加了一层分发（见 `fs/susfs_prctl.c`）。
+- 0x55550 是 `CMD_SUSFS_ADD_SUS_PATH` 的命令号，不是 prctl option。
+- `ksu_try_umount()` 是空实现（TRY_UMOUNT 关闭），需要时再补 `path_umount` 回移。
+
+## 已知限制
+
+- 设备锁屏后 CE 存储不可读：`/sdcard`、Termux 数据不可访问，sshd 需解锁后启动
+  （已装 `sshd_autostart` KSU 模块，解锁后自动拉起）
+- 华为 rproc 会标记 `/data/adb/ksud` 为 abnormal，不影响按需 `su`
+- SUSFS 的 `SUS_MOUNT` 与 DroidSpaces 冲突，本构建保持关闭
