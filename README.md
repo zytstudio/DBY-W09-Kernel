@@ -96,8 +96,10 @@ SUSFS 集成补丁（相对干净 4.19.157 源码树 / KSU v3.3.0-55）：
 ```sh
 # 内核侧（含 fs/susfs.c、prctl 分发器、task_struct 字段、Kconfig 依赖）
 patch -p1 -d src/kernel < patches/susfs-kernel.diff
-# KSU 侧（Kconfig 菜单 + ksu.c 里 susfs_init()）
+# KSU 侧（Kconfig 菜单 + ksu.c 里 susfs_init()，对应 backslashxx v3.3.1）
 git -C src/kernel/KernelSU apply ../../patches/ksu-susfs.diff
+# 或对任意 v3.3.x 树幂等接线:
+# python3 scripts/apply_ksu_susfs.py
 ```
 
 要点：

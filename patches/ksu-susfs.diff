@@ -139,10 +139,20 @@ index ed3165b9..e863fbad 100644
 +
 +endmenu
 diff --git a/kernel/ksu.c b/kernel/ksu.c
-index fe5256ed..bd13d22d 100644
+index c4c81203..b028943b 100644
 --- a/kernel/ksu.c
 +++ b/kernel/ksu.c
-@@ -217,6 +217,9 @@ static inline void ksu_print_build_info(void)
+@@ -19,6 +19,9 @@
+ #endif // MODULE
+ 
+ #include "kernel_includes.h"
++#ifdef CONFIG_KSU_SUSFS
++#include <linux/susfs.h>
++#endif
+ 
+ // selinux includes
+ #include "avc_ss.h"
+@@ -226,6 +229,9 @@ static inline void ksu_print_build_info(void)
  static int __init kernelsu_init(void)
  {
  	ksu_print_build_info();
