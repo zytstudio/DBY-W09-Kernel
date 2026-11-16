@@ -54,7 +54,16 @@ pack enforcing
 cp "$OUT/.config" "$IMG/${V}.config"
 
 log "=== variant $V: build permissive ==="
-python3 scripts/patch_permissive.py --mode "${PERM_MODE:-delay}" | tee -a "$LOG"
+# Container-enabled variants (4/5) cannot boot with SELinux permissive from the
+# first instruction: init's early phase needs enforcement and the device ends up
+# in Huawei's bootfail/fastboot loop.  For them flip at $PERM_DELAY seconds
+# instead (verified: 20 s is enough).  The other variants are truly permissive
+# from boot.
+case "$V" in
+  ksu-droidspaces|ksu-droidspaces-susfs) PMODE="${PERM_MODE:-delay}"; PSEC="${PERM_DELAY:-20}" ;;
+  *) PMODE="${PERM_MODE:-force}"; PSEC="${PERM_DELAY:-20}" ;;
+esac
+python3 scripts/patch_permissive.py --mode "$PMODE" --delay-sec "$PSEC" | tee -a "$LOG"
 scripts/build.sh "$OUT" Image.gz 2>&1 | tee -a "$LOG" | tail -5
 pack permissive
 

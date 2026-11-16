@@ -14,7 +14,7 @@
  };
  
 +/* DBY_FORCE_PERMISSIVE: flip to permissive once boot has settled */
-+static int dby_perm_delay __read_mostly = 60;
++static int dby_perm_delay __read_mostly = 20;
 +module_param_named(dby_perm_delay, dby_perm_delay, int, 0644);
 +
 +static void dby_perm_work(struct work_struct *work)

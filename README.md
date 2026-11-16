@@ -31,10 +31,17 @@ noroot               ksu                ksu-susfs
 ksu-droidspaces      ksu-droidspaces-susfs
 ```
 
-permissive 是**延迟翻转**：内核按 enforcing 启动，`dby_perm_delay` 秒（默认 60）
-后自己切 permissive。原因是这台 HarmonyOS user build 上「开机即 permissive」的
-内核会在 adb/ssh 起来前循环重启（三种实现都复现过），而运行中 `setenforce 0`
-完全正常。细节、证据和上机验收记录见
+permissive 的实现在 5 种变体上有两种（真机验证过）：
+
+- 变体 1/2/3（无容器选项）：**开机即 permissive**；
+- 变体 4/5（Docker/DroidSpaces 容器选项）：内核先按 enforcing 启动，第 20 秒
+  （`dby_perm_delay`）自己切 permissive —— 早期 permissive 与这批容器选项组合
+  会让 HarmonyOS 进 bootfail 循环。
+
+早期 permissive 在无容器配置上工作正常；闭源包里
+`boot_susfs_v1.5.5_ksu_v339_permissive.img` 其实是原厂镜像（与 stock 逐字节相同），
+真正开机即 permissive 的是 `boot_ksu_permissive_v0.9.5.img`（KSU v0.9.5，无容器
+选项）。细节、证据和上机验收记录见
 [`docs/M5-image-matrix.md`](docs/M5-image-matrix.md)。
 
 ## 流程

@@ -33,6 +33,7 @@ All modes are idempotent and reversible (--disable) and touch only a couple of
 selinux files, so toggling recompiles a handful of objects and relinks.
 """
 import argparse
+import re
 import sys
 
 MARK = "DBY_FORCE_PERMISSIVE"
@@ -77,8 +78,8 @@ INC_OFF = ("#include <linux/init.h>\n"
            "#include <linux/moduleparam.h>\n")
 
 INIT_ON = "static __init int selinux_init(void)\n"
-INIT_OFF = """/* DBY_FORCE_PERMISSIVE: flip to permissive once boot has settled */
-static int dby_perm_delay __read_mostly = 60;
+INIT_OFF_TMPL = """/* DBY_FORCE_PERMISSIVE: flip to permissive once boot has settled */
+static int dby_perm_delay __read_mostly = %d;
 module_param_named(dby_perm_delay, dby_perm_delay, int, 0644);
 
 static void dby_perm_work(struct work_struct *work)
@@ -117,6 +118,8 @@ def main():
     ws = "/home/zyt/dby-w09-kernel"
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["delay", "stealth", "compat", "force"], default="delay")
+    ap.add_argument("--delay-sec", type=int, default=20,
+                    help="delay-mode default for dby_perm_delay (compile-time, seconds)")
     ap.add_argument("--disable", action="store_true")
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--srcdir", default=ws + "/src/kernel")
@@ -152,7 +155,9 @@ def main():
             write(avc, a.replace(AVC_OFF, AVC_ON, 1))
         c = read(hooks)
         if "dby_perm_dw" in c:
-            c = c.replace(INIT_OFF, INIT_ON, 1)
+            c = re.sub(r"/\* DBY_FORCE_PERMISSIVE: flip to permissive.*?"
+                       r"static __init int selinux_init\(void\)\n",
+                       INIT_ON, c, count=1, flags=re.S)
             c = c.replace(SCHED_ON_PRINT, SCHED_ON, 1).replace(SCHED_OFF, SCHED_ON, 1)
             c = c.replace(INC_OFF, INC_ON, 1)
             write(hooks, c)
@@ -195,7 +200,7 @@ def main():
         c = c.replace(INC_ON, INC_OFF, 1)
         if INIT_ON not in c:
             sys.exit("error: selinux_init() anchor missing")
-        c = c.replace(INIT_ON, INIT_OFF, 1)
+        c = c.replace(INIT_ON, INIT_OFF_TMPL % args.delay_sec, 1)
         if SCHED_ON not in c:
             sys.exit("error: enforcing_set() call site missing")
         c = c.replace(SCHED_ON, SCHED_ON_PRINT, 1)

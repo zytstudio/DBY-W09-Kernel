@@ -60,10 +60,10 @@ list:
 	@echo "ksu-droidspaces-susfs yes  part.  yes     SUSFS without SUS_MOUNT/try_umount"
 	@echo
 	@echo "each variant has an enforcing and a permissive build -> 10 images"
-	@echo "permissive = boots enforcing, kernel flips itself to permissive at"
-	@echo "             dby_perm_delay seconds (default 60); override by repacking"
-	@echo "             with --append-cmdline \"dby_perm_delay=NN\".  A kernel that"
-	@echo "             is permissive from early boot reboot-loops on HarmonyOS."
+	@echo "permissive = variants 1-3 are permissive from boot; variants 4-5 boot"
+	@echo "             enforcing and flip at dby_perm_delay seconds (20), because"
+	@echo "             early permissive + the container options trips Huawei's"
+	@echo "             bootfail loop.  PERM_DELAY=NN overrides at build time."
 
 distclean:
 	rm -rf $(foreach v,$(VARIANTS),out/$(v)) out/images

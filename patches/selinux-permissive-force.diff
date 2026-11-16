@@ -1,0 +1,21 @@
+--- a/security/selinux/include/security.h
++++ b/security/selinux/include/security.h
+@@ -117,12 +117,16 @@
+ #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
+ static inline bool enforcing_enabled(struct selinux_state *state)
+ {
+-	return state->enforcing;
++	/* DBY_FORCE_PERMISSIVE: never report enforcing (permissive build) */
++	(void)state;
++	return false;
+ }
+ 
+ static inline void enforcing_set(struct selinux_state *state, bool value)
+ {
+-	state->enforcing = value;
++	/* DBY_FORCE_PERMISSIVE: ignore setenforce(1) from init/userspace */
++	(void)state;
++	(void)value;
+ }
+ #else
+ static inline bool enforcing_enabled(struct selinux_state *state)
