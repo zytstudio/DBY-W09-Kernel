@@ -15,6 +15,28 @@ GNU binutils 2.38 的从源码构建工程。目标：KernelSU root + SUSFS + Do
 
 源码：`src/kernel`（tar 内 `Code_Opensource/kernel`），KernelSU 在 `src/kernel/KernelSU`。
 
+## 10 个 boot 镜像（M5，推荐入口）
+
+```sh
+make images      # 5 种功能组合 x {enforcing, permissive} = 10 个镜像
+make ksu-susfs   # 只编一个组合（两种模式）
+make check       # 校验镜像结构（只有 kernel 与模板不同）
+make list        # 打印矩阵
+```
+
+产物：`artifacts/boot_<variant>_<mode>.img`（96MiB, header v2）+
+
+```
+noroot               ksu                ksu-susfs
+ksu-droidspaces      ksu-droidspaces-susfs
+```
+
+permissive 是**延迟翻转**：内核按 enforcing 启动，`dby_perm_delay` 秒（默认 60）
+后自己切 permissive。原因是这台 HarmonyOS user build 上「开机即 permissive」的
+内核会在 adb/ssh 起来前循环重启（三种实现都复现过），而运行中 `setenforce 0`
+完全正常。细节、证据和上机验收记录见
+[`docs/M5-image-matrix.md`](docs/M5-image-matrix.md)。
+
 ## 流程
 
 ```sh

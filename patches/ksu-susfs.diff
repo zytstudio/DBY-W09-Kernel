@@ -162,3 +162,27 @@ index c4c81203..b028943b 100644
  
  #ifdef CONFIG_KSU_DEBUG
  	pr_alert("*************************************************************");
+diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
+index 17b24164..e681c4c4 100644
+--- a/kernel/selinux/selinux.c
++++ b/kernel/selinux/selinux.c
+@@ -226,6 +226,19 @@ bool is_adbd(const struct cred *cred)
+ 	return is_sid_match(cred, cached_adbd_sid, ADBD_CONTEXT);
+ }
+ 
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++/* SUSFS: domain predicates used by fs/namespace.c and fs/susfs.c */
++bool susfs_is_current_ksu_domain(void)
++{
++	return is_ksu_domain();
++}
++
++bool susfs_is_current_zygote_domain(void)
++{
++	return is_zygote(current_cred());
++}
++#endif
++
+ void escape_to_root_for_adb_root(void)
+ {
+ 	struct cred *cred = prepare_creds();

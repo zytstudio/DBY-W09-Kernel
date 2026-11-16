@@ -8,7 +8,7 @@ export CC=clang
 export CLANG_TRIPLE=aarch64-linux-gnu-
 export HOSTCC=gcc
 export PYTHON=python3
-kmake() { make -C "$WS/src/kernel" O="$1" ARCH=arm64 -j16 \
+kmake() { make -C "$WS/src/kernel" O="$1" ARCH=arm64 -j${JOBS:-16} \
   CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- \
   LD=aarch64-linux-gnu-ld AR=aarch64-linux-gnu-ar NM=aarch64-linux-gnu-nm \
   OBJCOPY=aarch64-linux-gnu-objcopy OBJDUMP=aarch64-linux-gnu-objdump \

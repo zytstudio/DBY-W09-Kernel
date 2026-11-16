@@ -5,3 +5,5 @@ out/
 toolchain/
 artifacts/*.img
 artifacts/*.gz
+artifacts/*.img.sha256
+ssh.txt

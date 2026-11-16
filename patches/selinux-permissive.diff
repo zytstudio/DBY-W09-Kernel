@@ -1,0 +1,40 @@
+--- a/security/selinux/hooks.c
++++ b/security/selinux/hooks.c
+@@ -25,6 +25,8 @@
+  */
+ 
+ #include <linux/init.h>
++#include <linux/workqueue.h>
++#include <linux/moduleparam.h>
+ #include <linux/kd.h>
+ #include <linux/kernel.h>
+ #include <linux/tracehook.h>
+@@ -7277,6 +7279,18 @@
+ #endif
+ };
+ 
++/* DBY_FORCE_PERMISSIVE: flip to permissive once boot has settled */
++static int dby_perm_delay __read_mostly = 60;
++module_param_named(dby_perm_delay, dby_perm_delay, int, 0644);
++
++static void dby_perm_work(struct work_struct *work)
++{
++	enforcing_set(&selinux_state, false);
++	selinux_status_update_setenforce(&selinux_state, 0);
++	pr_info("SELinux: DBY_FORCE_PERMISSIVE flip -> permissive\n");
++}
++static DECLARE_DELAYED_WORK(dby_perm_dw, dby_perm_work);
++
+ static __init int selinux_init(void)
+ {
+ 	if (!security_module_enable("selinux")) {
+@@ -7293,6 +7307,9 @@
+ 
+ 	memset(&selinux_state, 0, sizeof(selinux_state));
+ 	enforcing_set(&selinux_state, selinux_enforcing_boot);
++	pr_info("SELinux: DBY permissive build, flip in %d s\n", dby_perm_delay);
++	if (dby_perm_delay >= 0)
++		schedule_delayed_work(&dby_perm_dw, dby_perm_delay * HZ);
+ 	selinux_state.checkreqprot = selinux_checkreqprot_boot;
+ 	selinux_ss_init(&selinux_state.ss);
+ 	selinux_avc_init(&selinux_state.avc);

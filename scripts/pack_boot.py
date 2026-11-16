@@ -28,6 +28,7 @@ def main():
     ap.add_argument('--kernel', required=True)
     ap.add_argument('--template', required=True)
     ap.add_argument('--out', required=True)
+    ap.add_argument('--append-cmdline', default='', help="tokens appended to the boot header cmdline (<=512B)")
     args = ap.parse_args()
 
     t = open(args.template, 'rb').read()
@@ -58,6 +59,16 @@ def main():
 
     hdr = bytearray(t[:ps])
     struct.pack_into('<I', hdr, 8, len(k))
+
+    if args.append_cmdline:
+        cmd = bytes(hdr[64:576]).split(b'\x00')[0]
+        extra = args.append_cmdline.encode()
+        if extra not in cmd:
+            new = (cmd + b' ' + extra).strip()
+            if len(new) >= 512:
+                sys.exit('cmdline too long (%d >= 512)' % len(new))
+            hdr[64:576] = new + b'\x00' * (512 - len(new))
+            print('cmdline appended:', extra.decode())
 
     if nend <= orig_end:
         new_vm_off, new_vm_sz, new_orig = vm_off, vm_sz, orig_sz

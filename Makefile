@@ -1,0 +1,69 @@
+# Reproducible boot-image matrix for the Huawei MatePad 11 (DBY-W09, kona).
+#
+#   make images      build all 5 variants x {enforcing, permissive} = 10 images
+#   make ksu-susfs   build a single variant (both flavours)
+#   make check       verify every produced image against the stock template
+#   make list        show the matrix and what each variant contains
+#   make distclean   drop per-variant build trees (keeps images/artifacts)
+#
+# Requirements: toolchain/ (clang 11.1.0-6 + binutils 2.38, see scripts/env.sh),
+# src/kernel/ patched by scripts/patch_source.py + scripts/apply_ksu_susfs.py,
+# configs/running.config, artifacts/boot_stock_device.img.
+#
+# Enforcing/permissive is a *source* toggle (scripts/patch_permissive.py), not a
+# .config toggle, so the second flavour only recompiles a few selinux objects.
+# The device is a HarmonyOS user build: cmdline tricks (enforcing=0,
+# androidboot.selinux=permissive) do not survive init's setenforce(1), which is
+# why permissive has to be compiled in.
+
+SHELL   := /bin/bash
+JOBS    ?= 16
+export JOBS
+
+VARIANTS := noroot ksu ksu-susfs ksu-droidspaces ksu-droidspaces-susfs
+MODES    := enforcing permissive
+IMAGES   := $(foreach v,$(VARIANTS),$(foreach m,$(MODES),artifacts/boot_$(v)_$(m).img))
+
+.PHONY: all images check list distclean manifest $(VARIANTS)
+
+all: images
+
+images: $(VARIANTS)
+	@sha256sum $(IMAGES) > artifacts/IMAGES.sha256
+	@echo
+	@echo "=== boot image matrix ==="
+	@sed 's/^/  /' artifacts/IMAGES.sha256
+
+manifest:
+	@sha256sum $(IMAGES) > artifacts/IMAGES.sha256
+	@cat artifacts/IMAGES.sha256
+
+$(VARIANTS):
+	scripts/build_variant.sh $@
+
+check:
+	@set -e; for v in $(VARIANTS); do \
+	  for m in $(MODES); do \
+	    f=artifacts/boot_$${v}_$${m}.img; \
+	    test -f $$f || { echo "missing $$f"; exit 1; }; \
+	    python3 scripts/verify_boot.py artifacts/boot_stock_device.img $$f | tail -1 \
+	      | sed "s|^|$$v/$$m: |"; \
+	  done; \
+	done
+
+list:
+	@echo "variant              root  susfs  docker  notes"
+	@echo "noroot               -     -      -       stock feature set, no KernelSU"
+	@echo "ksu                  yes   -      -       KernelSU v3.3.1 (uapi 5)"
+	@echo "ksu-susfs            yes   full   -       + SUS_MOUNT, auto-add (TRY_UMOUNT n/a)"
+	@echo "ksu-droidspaces      yes   -      yes     cgroups/sysvipc/netfilter/macvlan"
+	@echo "ksu-droidspaces-susfs yes  part.  yes     SUSFS without SUS_MOUNT/try_umount"
+	@echo
+	@echo "each variant has an enforcing and a permissive build -> 10 images"
+	@echo "permissive = boots enforcing, kernel flips itself to permissive at"
+	@echo "             dby_perm_delay seconds (default 60); override by repacking"
+	@echo "             with --append-cmdline \"dby_perm_delay=NN\".  A kernel that"
+	@echo "             is permissive from early boot reboot-loops on HarmonyOS."
+
+distclean:
+	rm -rf $(foreach v,$(VARIANTS),out/$(v)) out/images
