@@ -23,6 +23,9 @@ ramdisk / DTB / cmdline / os_version 与设备原厂镜像一致（`make check` 
 - 变体 3 的 SUSFS 含 `SUS_MOUNT` + 自动隐藏；变体 5 关闭 `SUS_MOUNT`
   （与 DroidSpaces 的 bind mount 冲突）。两者都不含 `TRY_UMOUNT`
   （KernelSU fork 未导出对应内部函数）。
+- 内核额外修了华为 msm 显示驱动的 `msm_gem_fault` 空指针：容器里 Anland/llvmpipe
+  mmap 导入的 dma-buf 不再导致设备重启（`scripts/patch_msm_fault.py`，
+  见 `../docs/M6-anland-crash.md`）。
 - 「第 20 秒」是内核自己翻转，与用户态无关；`dmesg | grep DBY_FORCE_PERMISSIVE`
   能看到 `flip -> permissive`。早期 permissive 与容器选项组合会触发
   HarmonyOS bootfail 循环，所以容器变体必须延迟。

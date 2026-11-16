@@ -41,7 +41,16 @@ cd -
 
 # 2.4 把 SUSFS 1.5.5 接到内核 + KernelSU（幂等）
 python3 scripts/apply_ksu_susfs.py
+
+# 2.5 修华为 MSM 显示驱动对导入 dma-buf 的 mmap 空指针（容器 GPU 直通会踩到）
+python3 scripts/patch_msm_fault.py
 ```
+
+`scripts/patch_msm_fault.py`（见 [`M6-anland-crash.md`](M6-anland-crash.md)）：
+华为 `techpack/display/msm/msm_gem.c` 对导入的 dma-buf 不建页数组，
+`msm_gem_fault()` 直接解引用 NULL → 容器里 Mesa/llvmpipe mmap Anland 的
+dma-buf 时 oops → 重启。补丁在 fault 时用 sg 表补页数组，并在拿不到页时返回
+`VM_FAULT_SIGBUS`，不会再崩内核。
 
 `scripts/patch_source.py` 做的事（详见 README 表格）：`mkcompile_h` 取 `head -n1`、
 qcacld 用 `$(srctree)`、放开 `KPROBES/KRETPROBES` 的 `HUAWEI_KERNEL_DEBUG` 依赖、
@@ -183,6 +192,8 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | `ksu_susfs` 报 Requires susfs v1.5.3+ | 用户态要用 `prctl(0xDEADBEEF, ...)` 的版本；本内核是 SUSFS 1.5.5 + 该 prctl 分发器 |
 | 构建报 `lcd_kit_dpd.h` 找不到 | 没跑 `scripts/patch_source.py`（会生成 stub） |
 | 链接报 RTIC 重定位溢出 | 没跑 `scripts/patch_source.py` 的 `.bss.rtic` 合并，或没关 `RELOCATABLE` |
+| 容器里 Anland 桌面一连上就重启 | 华为 msm 驱动 `msm_gem_fault` 空指针（见 `M6-anland-crash.md`），确认跑过 `scripts/patch_msm_fault.py` |
+| Anland 连上后 deniald 报 `EGL_ANDROID_native_fence_sync` 缺失 | 容器里 Mesa 用了 llvmpipe（没走 Adreno/kgsl 或 virgl），是用户态 GPU 配置问题，不是内核 |
 
 ---
 

@@ -45,6 +45,8 @@ permissive 的实现在 5 种变体上有两种（真机验证过）：
 选项）。细节、证据和上机验收记录见
 [`docs/M5-image-matrix.md`](docs/M5-image-matrix.md)。
 完整的构建方法（从解包到刷机、常见问题）见 [`docs/BUILD.md`](docs/BUILD.md)。
+容器里 Anland 桌面导致设备重启的问题（华为 msm 驱动空指针）与修复见
+[`docs/M6-anland-crash.md`](docs/M6-anland-crash.md)。
 
 ## 流程
 

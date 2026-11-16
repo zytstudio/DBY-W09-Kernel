@@ -105,16 +105,16 @@ make distclean         # 删除 out/<variant> 构建目录（保留镜像）
 ## 镜像清单（sha256）
 
 ```
-790f61d2e870d27d0ee589a7bd385336e81fd3f20cf970d8302f9d58c31a5a6b  boot_noroot_enforcing.img
-f010dd68e5ffad6a1eaf0abf355b36e4f90873c35cfd6241032d7317d0a79358  boot_noroot_permissive.img
-dcae20bb63f713f50110edabee8cf7269ed009ef6e3a9e15b017ec9ff62c3a55  boot_ksu_enforcing.img
-44b1afab661378721f76e503eb69f8fbb0f5a6187a7d41354004a46c259c9889  boot_ksu_permissive.img
-17d6a5e8711b7a4caceffa9248076d1115b0b4e2dc1ec46847b9424c12a125d9  boot_ksu-susfs_enforcing.img
-c4e3082f92c3df445b664863e5738d76a8976f5ba678bcf406523b57930d65e9  boot_ksu-susfs_permissive.img
-ea980169ae71d0dbac49020194175ce11bde6659c30812d84141719156a79027  boot_ksu-droidspaces_enforcing.img
-e2f84e54627a6e266f5f96e258d7b9d04ade1184c506ddb03455e26554b0846c  boot_ksu-droidspaces_permissive.img
-f9e48d61d7febe2dd2ea73cc93542b7d12a69580dd50f1d7c4989ead361be12e  boot_ksu-droidspaces-susfs_enforcing.img
-63b2a81aad6ebf6f5818ffda49bd8b929a4403f84394f492f9a207e05c9558eb  boot_ksu-droidspaces-susfs_permissive.img
+ed2c4452e8eb21c8bf873b767081a8afd412e5263432808d9350db14fe34b1b7  boot_noroot_enforcing.img
+c1bab9e84c24cf3aa36699e377b32baae3e5700e93608dc1f48399eea3fa24ed  boot_noroot_permissive.img
+0a423cdb9a777ad45f6fc51ab365ba0ac179a1996e843b022d5a15fafc2efb8e  boot_ksu_enforcing.img
+4d0c2792947ef662717babefb08a64231ba298844687efb11c9d83e49dba175d  boot_ksu_permissive.img
+9c169642af75e4c25c282769cb128d0ff976e859ec32c84ad6b270df46f7f189  boot_ksu-susfs_enforcing.img
+d332c0037a42ab268b3681da0e5d6eba74e01da5420b68e06eabad78b01c017d  boot_ksu-susfs_permissive.img
+fcb2bb3406dc75e00c6abcfe0b06ae4540f2281e42239ed3e14c16cdb0b9992e  boot_ksu-droidspaces_enforcing.img
+73e7a883e2ad13497cceb3e881b5ae4431cdddf3922f8e48ed306ed2be6306a2  boot_ksu-droidspaces_permissive.img
+1788c46f61cd5e522d9087029c1ee65b14649380570e6bda71ee51b66d340cee  boot_ksu-droidspaces-susfs_enforcing.img
+bc525526401a21429004f6ccc3fa44c7b2e9fbd093b8d0fedf7ceaba46e78d46  boot_ksu-droidspaces-susfs_permissive.img
 ```
 
 ## 上机验收（2026-11-16）
@@ -160,5 +160,8 @@ fastboot reboot
 - 变体 3/5 关闭 `TRY_UMOUNT`（KSU fork 未导出 `try_umount`）。
 - 只构建 `Image.gz`，不构建 dtb；DTB 沿用 stock 模板（华为 `dtbs` 目标依赖私有
   `lcd_kit_parser.pl`）。
+- 全部 10 个镜像都包含 `scripts/patch_msm_fault.py` 的 msm 修复：容器 GPU 直通
+  时 Mesa/llvmpipe mmap 导入的 dma-buf 不再触发 `msm_gem_fault` 空指针/重启
+  （见 [`M6-anland-crash.md`](M6-anland-crash.md)）。
 - 每次写 `boot` 分区前都需要人工确认；本工程从不写 `ramdisk`/`dtbo`/`vbmeta`/
   `userdata`。
