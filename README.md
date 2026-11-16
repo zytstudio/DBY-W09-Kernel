@@ -24,7 +24,8 @@ make check       # 校验镜像结构（只有 kernel 与模板不同）
 make list        # 打印矩阵
 ```
 
-产物：`artifacts/boot_<variant>_<mode>.img`（96MiB, header v2）+
+产物：`output/boot_<variant>_<mode>.img`（96MiB, header v2，附
+`output/SHA256SUMS`；构建中间产物在 `artifacts/`）
 
 ```
 noroot               ksu                ksu-susfs
@@ -43,6 +44,7 @@ permissive 的实现在 5 种变体上有两种（真机验证过）：
 真正开机即 permissive 的是 `boot_ksu_permissive_v0.9.5.img`（KSU v0.9.5，无容器
 选项）。细节、证据和上机验收记录见
 [`docs/M5-image-matrix.md`](docs/M5-image-matrix.md)。
+完整的构建方法（从解包到刷机、常见问题）见 [`docs/BUILD.md`](docs/BUILD.md)。
 
 ## 流程
 

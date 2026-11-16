@@ -86,7 +86,7 @@ make distclean         # 删除 out/<variant> 构建目录（保留镜像）
 | `out/<variant>/` | 内核构建树（`O=`） |
 | `out/images/<variant>-<mode>.Image.gz` | 裸内核（调试用） |
 | `out/images/<variant>.config` | 该变体最终 `.config` |
-| `artifacts/boot_<variant>_<mode>.img` | 可刷入镜像（96 MiB，header v2） |
+| `output/boot_<variant>_<mode>.img` | 交付用可刷入镜像（96 MiB，header v2，`make dist` 从 artifacts 整理） |
 | `artifacts/IMAGES.sha256` | 10 个镜像的 sha256（`make manifest`） |
 
 ## 复现性
@@ -136,13 +136,13 @@ f9e48d61d7febe2dd2ea73cc93542b7d12a69580dd50f1d7c4989ead361be12e  boot_ksu-droid
 
 ```sh
 # adb（设备已 root、能进系统时）
-adb push artifacts/boot_<variant>_<mode>.img /data/local/tmp/boot.img
+adb push output/boot_<variant>_<mode>.img /data/local/tmp/boot.img
 adb shell su -c 'dd if=/data/local/tmp/boot.img of=/dev/block/by-name/boot bs=4096 conv=fsync'
 adb shell su -c 'sha256sum /dev/block/by-name/boot'
 adb reboot
 
 # fastboot（进不了系统时）
-fastboot flash boot artifacts/boot_<variant>_<mode>.img
+fastboot flash boot output/boot_<variant>_<mode>.img
 fastboot reboot
 ```
 

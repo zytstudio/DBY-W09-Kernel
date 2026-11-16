@@ -21,10 +21,11 @@ JOBS    ?= 16
 export JOBS
 
 VARIANTS := noroot ksu ksu-susfs ksu-droidspaces ksu-droidspaces-susfs
+DIST     := output
 MODES    := enforcing permissive
 IMAGES   := $(foreach v,$(VARIANTS),$(foreach m,$(MODES),artifacts/boot_$(v)_$(m).img))
 
-.PHONY: all images check list distclean manifest $(VARIANTS)
+.PHONY: all images check list distclean manifest dist $(VARIANTS)
 
 all: images
 
@@ -33,10 +34,22 @@ images: $(VARIANTS)
 	@echo
 	@echo "=== boot image matrix ==="
 	@sed 's/^/  /' artifacts/IMAGES.sha256
+	@$(MAKE) --no-print-directory dist
 
 manifest:
 	@sha256sum $(IMAGES) > artifacts/IMAGES.sha256
 	@cat artifacts/IMAGES.sha256
+
+# Curated deliverable folder: the 10 images + their own checksum list.
+dist:
+	@mkdir -p $(DIST)
+	@set -e; for v in $(VARIANTS); do for m in $(MODES); do \
+	  cp -f artifacts/boot_$${v}_$${m}.img $(DIST)/; \
+	done; done
+	@cd $(DIST) && sha256sum *.img > SHA256SUMS
+	@echo "=== $(DIST)/ ==="
+	@ls -l $(DIST)/*.img | awk '{print $$5, $$9}'
+	@echo "checksums: $(DIST)/SHA256SUMS"
 
 $(VARIANTS):
 	scripts/build_variant.sh $@

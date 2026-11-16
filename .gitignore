@@ -7,3 +7,4 @@ artifacts/*.img
 artifacts/*.gz
 artifacts/*.img.sha256
 ssh.txt
+output/*.img
