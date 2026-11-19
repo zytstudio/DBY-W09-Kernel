@@ -1,43 +1,50 @@
 #!/usr/bin/env python3
-"""Idempotently wire SUSFS into a backslashxx/KernelSU v3.3.x checkout.
+"""Apply the KernelSU-side SUSFS patch (patches/ksu-susfs.diff).
+
+That patch carries everything the kernel side needs from KernelSU:
+  - kernel/ksu.c: include <linux/susfs.h>, call susfs_init()
+  - kernel/Kconfig: the "KernelSU - SUSFS" menu
+  - kernel/selinux/selinux.c: susfs_is_current_{ksu,zygote}_domain()
+
+It is generated against backslashxx/KernelSU vendored version
+b1365d093208a4ab37a6045f0ab0d89977fad637 (v3.3.1), so pin the checkout there
+(scripts/fetch_sources.sh does).
 
 Usage: python3 scripts/apply_ksu_susfs.py [KERNELSU_DIR]
+Idempotent: does nothing when the patch is already applied.
 """
-import os, sys
+import os
+import subprocess
+import sys
 
-KSU = sys.argv[1] if len(sys.argv) > 1 else 'src/kernel/KernelSU'
-PATCH = '/tmp/10_susfs.patch'
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+KSU = sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "src/kernel/KernelSU")
+PATCH = os.path.join(REPO, "patches/ksu-susfs.diff")
 
-def sub(path, old, new, label):
-    p = os.path.join(KSU, path)
-    s = open(p).read()
-    if new in s:
-        print('  [skip]', label); return
-    if old not in s:
-        print('  [MISS]', label); return
-    open(p, 'w').write(s.replace(old, new, 1))
-    print('  [ok]  ', label)
 
-# 1) include susfs.h
-sub('kernel/ksu.c', '#include "kernel_includes.h"\n',
-    '#include "kernel_includes.h"\n#ifdef CONFIG_KSU_SUSFS\n#include <linux/susfs.h>\n#endif\n',
-    'ksu.c: include susfs.h')
-# 2) call susfs_init() at KSU init
-sub('kernel/ksu.c', '\tksu_print_build_info();\n',
-    '\tksu_print_build_info();\n#ifdef CONFIG_KSU_SUSFS\n\tsusfs_init();\n#endif\n',
-    'ksu.c: susfs_init()')
-# 3) append Kconfig menu (extracted from simonpunk's 10_ patch)
-p = os.path.join(KSU, 'kernel/Kconfig')
-s = open(p).read()
-if 'KSU_SUSFS' in s:
-    print('  [skip] Kconfig menu')
-else:
-    patch = open(PATCH, errors='replace').read()
-    i = patch.find('diff --git a/kernel/Kconfig')
-    j = patch.find('\ndiff --git ', i + 5)
-    added = [l[1:] for l in patch[i:j].splitlines() if l.startswith('+')]
-    # drop the '++ b/kernel/Kconfig' header artifact
-    added = [l for l in added if l.strip() not in ('++ b/kernel/Kconfig', '+++ b/kernel/Kconfig')]
-    menu = '\n'.join(added).strip()
-    open(p, 'w').write(s.rstrip() + '\n\n' + menu + '\n')
-    print('  [ok]   Kconfig menu')
+def git(*args):
+    return subprocess.run(["git", "-C", KSU, *args], capture_output=True, text=True)
+
+
+def main():
+    if not os.path.isdir(os.path.join(KSU, "kernel")):
+        sys.exit(f"error: {KSU} does not look like a KernelSU checkout")
+
+    r = git("apply", "--reverse", "--check", PATCH)
+    if r.returncode == 0:
+        print("KernelSU SUSFS patch already applied")
+        return 0
+
+    r = git("apply", "--check", PATCH)
+    if r.returncode != 0:
+        sys.exit("error: patch does not apply cleanly:\n" + r.stderr)
+
+    r = git("apply", PATCH)
+    if r.returncode != 0:
+        sys.exit("error: git apply failed:\n" + r.stderr)
+    print("KernelSU SUSFS patch applied")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

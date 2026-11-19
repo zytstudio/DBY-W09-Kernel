@@ -1,0 +1,35 @@
+DBY-W09 kernel build (MatePad 11 2021, HarmonyOS 4.3 / Linux 4.19.157)
+Copyright (C) 2026 the contributors of this repository
+
+This repository contains build scripts, patch files and documentation for a
+Linux kernel that is based on Huawei's GPL-2.0 kernel source release for the
+DBY-W09. The kernel source itself is *not* redistributed here; it is downloaded
+from Huawei's open-source release page and patched by scripts/fetch_sources.sh.
+
+Licensing of the pieces:
+
+  * This repository's scripts, patches and documentation: GPL-2.0
+    (see LICENSE).
+
+  * Linux kernel (Huawei DBY-W09 source release): GPL-2.0.
+
+  * KernelSU (https://github.com/backslashxx/KernelSU, commit
+    b1365d093208a4ab37a6045f0ab0d89977fad637): GPL-2.0.
+
+  * SUSFS (https://github.com/simonpunk/susfs4ksu, kernel-4.19, 1.5.5):
+    GPL-2.0.
+
+  * The build toolchain packages (Ubuntu clang 11.1.0-6, binutils 2.38) are
+    downloaded from archive.ubuntu.com and keep their own licenses.
+
+The scripts under scripts/ are original work unless stated otherwise; the
+patches under patches/ are derived from the upstream projects above and from
+the vendor kernel, and remain under their respective licenses.
+
+"KernelSU", "SUSFS", "Droidspaces", "Anland", "Denial", "Huawei" and
+"HarmonyOS" are trademarks of their respective owners. This project is not
+affiliated with or endorsed by any of them.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. Flashing a boot image can brick or wipe a device; you do it at your
+own risk.

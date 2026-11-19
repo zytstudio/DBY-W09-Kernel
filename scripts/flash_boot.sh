@@ -1,17 +1,33 @@
 #!/bin/bash
-# Usage: flash_boot.sh <local.img> [--yes]
-# Requires explicit --yes; always prints the exact command first.
+# Flash one boot image through adb (su dd) or fastboot.
+#
+#   scripts/flash_boot.sh output/boot_ksu_enforcing.img --yes
+#   scripts/flash_boot.sh output/boot_ksu_enforcing.img --yes --fastboot
+#
+# Only /dev/block/by-name/boot is written. The --yes flag is mandatory: the
+# script is meant to run after a human approved the flash.
 set -e
-IMG="$1"; CONFIRM="$2"
+IMG=${1:?usage: flash_boot.sh IMAGE --yes [--fastboot]}
+CONFIRM=${2:-}
+MODE=${3:-}
+ADB=${ADB:-adb}
+FB=${FB:-fastboot}
+
 [ -f "$IMG" ] || { echo "missing $IMG"; exit 1; }
 SUM=$(sha256sum "$IMG" | awk '{print $1}')
 echo "image : $IMG"
 echo "sha256: $SUM"
-echo "target: /dev/block/by-name/boot  (slotless, 96MiB)"
-echo "cmd   : su -c 'dd if=/sdcard/Download/$(basename "$IMG") of=/dev/block/by-name/boot bs=4096 conv=fsync'"
+echo "target: /dev/block/by-name/boot (slotless, 96 MiB)"
 [ "$CONFIRM" = "--yes" ] || { echo "REFUSING: pass --yes after user approval"; exit 2; }
-scp -P 8022 -o StrictHostKeyChecking=no "$IMG" u0_a212@192.168.1.215:/sdcard/Download/ >/dev/null
-/tmp/dsh.sh "su -c 'sha256sum /sdcard/Download/$(basename "$IMG")'" 2>/dev/null
-/tmp/dsh.sh "su -c 'dd if=/sdcard/Download/$(basename "$IMG") of=/dev/block/by-name/boot bs=4096 conv=fsync'" 2>/dev/null
-/tmp/dsh.sh "su -c 'sha256sum /dev/block/by-name/boot'" 2>/dev/null
-echo "expected: $SUM"
+
+if [ "$MODE" = "--fastboot" ]; then
+  "$FB" flash boot "$IMG"
+  "$FB" reboot
+else
+  "$ADB" push "$IMG" /data/local/tmp/boot.img
+  "$ADB" shell 'su -c "sha256sum /data/local/tmp/boot.img"'
+  "$ADB" shell 'su -c "dd if=/data/local/tmp/boot.img of=/dev/block/by-name/boot bs=4096 conv=fsync"'
+  "$ADB" shell 'su -c "sha256sum /dev/block/by-name/boot"'
+  echo "expected: $SUM"
+  "$ADB" reboot
+fi

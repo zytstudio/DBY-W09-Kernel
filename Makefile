@@ -25,9 +25,15 @@ DIST     := output
 MODES    := enforcing permissive
 IMAGES   := $(foreach v,$(VARIANTS),$(foreach m,$(MODES),artifacts/boot_$(v)_$(m).img))
 
-.PHONY: all images check list distclean manifest dist $(VARIANTS)
+.PHONY: all bootstrap images check list distclean manifest dist $(VARIANTS)
 
 all: images
+
+# One-time setup: toolchain + kernel source + KernelSU + patches.
+# Needs the Huawei tarball (see SOURCE-MANIFEST.md) and network for the toolchain.
+bootstrap:
+	scripts/fetch_toolchain.sh
+	scripts/fetch_sources.sh
 
 images: $(VARIANTS)
 	@sha256sum $(IMAGES) > artifacts/IMAGES.sha256

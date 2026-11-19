@@ -8,3 +8,8 @@ artifacts/*.gz
 artifacts/*.img.sha256
 ssh.txt
 output/*.img
+KSU/
+*.log
+*.rej
+*.orig
+.cache/

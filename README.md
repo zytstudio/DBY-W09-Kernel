@@ -1,149 +1,104 @@
-# DBY-W09 (MatePad 11 2021) Android 4.19 内核构建
+# DBY-W09 内核构建（MatePad 11 2021 / HarmonyOS 4.3）
 
-官方 `DBY-W09_HarmonyOS4.0.0_opensource.tar.gz` 源码 + Ubuntu clang 11.1.0-6 +
-GNU binutils 2.38 的从源码构建工程。目标：KernelSU root + SUSFS + Docker/DroidSpaces。
+华为 MatePad 11（2021，DBY-W09，骁龙 865 / kona）的 Linux 4.19.157 内核构建工程，
+基于华为官方开源包，产出 **10 个 boot 镜像**：
 
-## 环境
+- 5 种功能组合：无 root / KernelSU / KernelSU+SUSFS / KernelSU+Docker(DroidSpaces) /
+  KernelSU+Docker+SUSFS；
+- 每种组合再分 **enforcing** 和 **permissive** 两种 SELinux 模式。
 
-```sh
-. scripts/env.sh          # PATH/LD_LIBRARY_PATH/交叉编译器
-```
+KernelSU 用 [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU)（钉在
+`b1365d09`，v3.3.1 / UAPI 5），SUSFS 1.5.5，Docker/DroidSpaces 需要的
+cgroup/netfilter/macvlan 选项全开。
 
-工具链（`toolchain/debs`，`dpkg-deb -x` 解包，无需 root）：
-- clang-11_11.1.0-6 / libclang-cpp11 / libllvm11 / libclang-common-11-dev
-- binutils-aarch64-linux-gnu_2.38-4ubuntu2.12
+## 仓库里有什么
 
-源码：`src/kernel`（tar 内 `Code_Opensource/kernel`），KernelSU 在 `src/kernel/KernelSU`。
-
-## 10 个 boot 镜像（M5，推荐入口）
-
-```sh
-make images      # 5 种功能组合 x {enforcing, permissive} = 10 个镜像
-make ksu-susfs   # 只编一个组合（两种模式）
-make check       # 校验镜像结构（只有 kernel 与模板不同）
-make list        # 打印矩阵
-```
-
-产物：`output/boot_<variant>_<mode>.img`（96MiB, header v2，附
-`output/SHA256SUMS`；构建中间产物在 `artifacts/`）
-
-```
-noroot               ksu                ksu-susfs
-ksu-droidspaces      ksu-droidspaces-susfs
-```
-
-permissive 的实现在 5 种变体上有两种（真机验证过）：
-
-- 变体 1/2/3（无容器选项）：**开机即 permissive**；
-- 变体 4/5（Docker/DroidSpaces 容器选项）：内核先按 enforcing 启动，第 20 秒
-  （`dby_perm_delay`）自己切 permissive —— 早期 permissive 与这批容器选项组合
-  会让 HarmonyOS 进 bootfail 循环。
-
-早期 permissive 在无容器配置上工作正常；闭源包里
-`boot_susfs_v1.5.5_ksu_v339_permissive.img` 其实是原厂镜像（与 stock 逐字节相同），
-真正开机即 permissive 的是 `boot_ksu_permissive_v0.9.5.img`（KSU v0.9.5，无容器
-选项）。细节、证据和上机验收记录见
-[`docs/M5-image-matrix.md`](docs/M5-image-matrix.md)。
-完整的构建方法（从解包到刷机、常见问题）见 [`docs/BUILD.md`](docs/BUILD.md)。
-容器里 Anland 桌面导致设备重启的问题（华为 msm 驱动空指针）与修复见
-[`docs/M6-anland-crash.md`](docs/M6-anland-crash.md)。
-
-## 流程
-
-```sh
-# 1. 解包 + 补丁（幂等）
-tar xzf DBY-W09_HarmonyOS4.0.0_opensource.tar.gz -C src Code_Opensource/kernel
-mv src/Code_Opensource/kernel src/kernel
-python3 scripts/patch_source.py
-
-# 2. 集成 backslashxx/KernelSU（钉在 c16b935d，v3.3.1+）
-cd src/kernel
-bash KernelSU/kernel/setup.sh c16b935d07e13941774b6eeae1b1a0f8387f0960
-
-# 3. 生成配置（以设备 /proc/config.gz 为基准）
-./scripts/configure.sh "$PWD/out/m1"
-
-# 4. 编译（只编 Image.gz，不编 dtbs）
-./scripts/build.sh "$PWD/out/m1" Image.gz
-
-# 5. 用现机已知可用镜像做模板重新打包
-python3 scripts/pack_boot.py \
-  --kernel out/m1/arch/arm64/boot/Image.gz \
-  --template KSU/GKI/boot_susfs_v1.5.5_ksu_v339_permissive.img \
-  --out artifacts/boot_m1.img
-python3 scripts/verify_boot.py KSU/GKI/boot_susfs_v1.5.5_ksu_v339_permissive.img artifacts/boot_m1.img
-
-# 6. 刷入（需人工确认；只写 boot 分区）
-scripts/flash_boot.sh artifacts/boot_m1.img --yes
-```
-
-## 对源码的必要修改（`scripts/patch_source.py`）
-
-| 修改 | 原因 |
+| 目录 | 内容 |
 |---|---|
-| `scripts/mkcompile_h` 取 `head -n1` | clang -v 多行输出会破坏版本字符串 |
-| `drivers/qcacld/Kbuild` 用 `$(srctree)` | `O=` 外编时 WLAN 路径错误 |
-| 放开 `KPROBES/KRETPROBES` 的 `HUAWEI_KERNEL_DEBUG` 依赖 | 现机内核 KPROBES=y 而 HUAWEI_KERNEL_DEBUG=n |
-| 取消 5 个 5.x 回移的 `-Werror=` | 华为老代码（mm/vmalloc.c 等）不满足 |
-| `.bss.rtic` 并入主 `.bss` | STABS_DEBUG 的 `.comment 0` 会把位置计数器归零，导致 RTIC 段落在 0x1000，非可重定位链接报 `R_AARCH64_ADR_PREL_PG_HI21` 溢出 |
-| `lcd_kit_dpd.h` stub | 该头由华为私有 XML 工具生成，开源包不含；DPD 默认关闭 |
+| `scripts/` | 取源码/工具链、打补丁、配置、编译、打包、校验、刷机、设备自检 |
+| `patches/` | SUSFS 内核补丁、KernelSU 侧补丁、permissive 补丁（可复现的快照） |
+| `configs/running.config` | 设备原厂 `/proc/config.gz`，所有变体的配置基线 |
+| `Makefile` | `make images` 等入口 |
+| `docs/` | 构建指南（`BUILD.md`）、镜像矩阵（`M5`）、Anland 崩溃分析（`M6`）等 |
+| `output/` | 镜像的 sha256 清单 + 刷机速查（镜像本体走 Releases） |
+| `SOURCE-MANIFEST.md` | 所有组件的版本、commit、sha256 |
 
-## boot 镜像格式（96MiB，header v2）
+**不在仓库里**（体积原因）：内核源码（官方 tar，554 MB）、交叉工具链（200 MB+）、
+10 个 boot 镜像（每个 96 MiB）。前两者用脚本获取，镜像从 Releases 下载或用脚本构建。
 
-```
-0x0000  header (4096, v2, page 4096, os_version 0x1600014b)
-0x1000  Image.gz
-        ramdisk (gzip cpio, 519235B, 内含 fstab.qcom + e2fsck)
-        dtb (1,664,243B: 3 x kona FDT + RTIC FDT)
-0x16f8000 (24,084,480) vbmeta + 0 padding + AVBf footer (最后 64B)
-```
-`scripts/pack_boot.py` 只替换 kernel 并更新 `kernel_size`，ramdisk/DTB/cmdline/id
-原样保留；若新内核超出模板 payload 预算，会把 vbmeta 后移并重写 footer
-（本机 AVB 不强制：现机运行的自编内核与 stock footer 摘要本就对不上）。
-
-## 回滚
-
-- 已知可用内核：`KSU/GKI/boot_susfs_v1.5.5_ksu_v339_permissive.img`
-  （sha256 `8ce0842b…b57f7`，与刷机前设备 boot 分区逐字节一致）。
-- 设备 boot 备份：`artifacts/boot_stock_device.img`；ramdisk：`artifacts/ramdisk_stock.img`。
-- fastboot：Windows `C:\Users\18210\Desktop\UFI001C\fastboot.exe`（已在 WSL 验证 adb 可见设备）。
-
-## 已知差异 / 注意
-
-- 本构建与现机 config 的差异：KSU 版本（v3.3.1+ / 32730 vs 管理器 32640）、
-  `KPROBES` 来自放开依赖、无 SUSFS（M1 阶段）。
-- 只写 `boot` 分区，绝不碰 `ramdisk`/`dtbo`/`vbmeta`/`userdata`。
-
-## M2/M3 配置与 SUSFS
+## 快速开始
 
 ```sh
-# M2: 容器/Docker 内核能力
-./scripts/configure.sh "$PWD/out/m2" containers
-# M3: 容器 + SUSFS 1.5.5 (SUS_MOUNT/AUTO_ADD 关闭, 兼容 DroidSpaces)
-./scripts/configure.sh "$PWD/out/m3" susfs
-./scripts/build.sh "$PWD/out/m3" Image.gz
+git clone <this repo> && cd dby-w09-kernel
+
+# 1) 交叉工具链：Ubuntu clang 11.1.0-6 + binutils 2.38，解包到 toolchain/root
+scripts/fetch_toolchain.sh
+
+# 2) 内核源码：从华为开源页面下载 DBY-W09_HarmonyOS4.0.0_opensource.tar.gz
+#    放到仓库根目录（或 DBY_TARBALL=/path/to/tar.gz），然后：
+DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
+
+# 3) boot 模板：从一台仍是原厂 boot 分区（或已知可用备份）的设备 dump 96 MiB
+scripts/dump_boot_template.sh
+
+# 4) 构建全部 10 个镜像（16 线程，约 40 分钟）
+make images
 ```
 
-SUSFS 集成补丁（相对干净 4.19.157 源码树 / KSU v3.3.0-55）：
+产物在 `output/`：`boot_<variant>_<mode>.img` + `SHA256SUMS`（中间产物在 `artifacts/`）。
+
+只构建一组：
 
 ```sh
-# 内核侧（含 fs/susfs.c、prctl 分发器、task_struct 字段、Kconfig 依赖）
-patch -p1 -d src/kernel < patches/susfs-kernel.diff
-# KSU 侧（Kconfig 菜单 + ksu.c 里 susfs_init()，对应 backslashxx v3.3.1）
-git -C src/kernel/KernelSU apply ../../patches/ksu-susfs.diff
-# 或对任意 v3.3.x 树幂等接线:
-# python3 scripts/apply_ksu_susfs.py
+make ksu-susfs     # 该变体的 enforcing + permissive
+make check         # 校验镜像结构（只有 kernel 与模板不同）
+make list          # 打印变体矩阵
 ```
 
-要点：
-- SUSFS 用户态用 `prctl(0xDEADBEEF, CMD_*, ...)`；当前 KSU 是 ioctl-only，
-  因此在 `kernel/sys.c` 的 prctl 入口加了一层分发（见 `fs/susfs_prctl.c`）。
-- 0x55550 是 `CMD_SUSFS_ADD_SUS_PATH` 的命令号，不是 prctl option。
-- `ksu_try_umount()` 是空实现（TRY_UMOUNT 关闭），需要时再补 `path_umount` 回移。
+环境要求：Linux x86_64、16 线程（8 GB 内存起）、约 5 GB/变体构建空间、
+`python3`、`patch`、`dpkg-deb`、`git`、`curl`。
 
-## 已知限制
+## 变体
 
-- 设备锁屏后 CE 存储不可读：`/sdcard`、Termux 数据不可访问，sshd 需解锁后启动
-  （已装 `sshd_autostart` KSU 模块，解锁后自动拉起）
-- 华为 rproc 会标记 `/data/adb/ksud` 为 abnormal，不影响按需 `su`
-- SUSFS 的 `SUS_MOUNT` 与 DroidSpaces 冲突，本构建保持关闭
+| # | 变体 | root | SUSFS | Docker/DroidSpaces | permissive 行为 |
+|---|------|------|-------|--------------------|-----------------|
+| 1 | `noroot` | – | – | – | 开机即 permissive |
+| 2 | `ksu` | ✓ | – | – | 开机即 permissive |
+| 3 | `ksu-susfs` | ✓ | 完整（含 `SUS_MOUNT`） | – | 开机即 permissive |
+| 4 | `ksu-droidspaces` | ✓ | – | ✓ | 第 20 秒切 permissive |
+| 5 | `ksu-droidspaces-susfs` | ✓ | 部分（无 `SUS_MOUNT`） | ✓ | 第 20 秒切 permissive |
+
+permissive 为什么分两种：这台 HarmonyOS user build 的早期引导要求 SELinux
+enforcing（`enforcing=0`/`androidboot.selinux=permissive` 都无效），0 秒 permissive
+会让带容器选项的配置进 bootfail 循环；无容器配置可以开机即 permissive。
+延迟用 `dby_perm_delay`（编译期，`PERM_DELAY=NN`）调整。细节见
+[`docs/M5-image-matrix.md`](docs/M5-image-matrix.md)。
+
+## 刷入
+
+```sh
+adb push output/boot_ksu-droidspaces-susfs_permissive.img /data/local/tmp/boot.img
+adb shell su -c 'dd if=/data/local/tmp/boot.img of=/dev/block/by-name/boot bs=4096 conv=fsync'
+adb reboot
+# 进不了系统时：fastboot flash boot output/boot_<variant>_<mode>.img
+scripts/test_image.sh output/boot_ksu_permissive.img   # 自动刷入并采样 getenforce
+```
+
+只写 `boot` 分区（slotless，96 MiB），不碰 `ramdisk`/`dtbo`/`vbmeta`/`userdata`。
+刷机有风险，先备份原厂 boot。
+
+## 文档
+
+- [`docs/BUILD.md`](docs/BUILD.md) — 从解包到刷机的完整步骤、配置说明、排错
+- [`docs/M5-image-matrix.md`](docs/M5-image-matrix.md) — 10 个镜像的矩阵、permissive 机制与真机验收
+- [`docs/M6-anland-crash.md`](docs/M6-anland-crash.md) — 容器里 Anland 桌面导致设备重启的
+  内核根因（`msm_gem_fault` 空指针）与修复
+- `docs/M2-*.md`、`docs/M3-*.md`、`docs/M4-*.md` — Docker/DroidSpaces、SUSFS、KSU 升级记录
+
+## 许可
+
+脚本、补丁与文档：GPL-2.0（见 [`LICENSE`](LICENSE)）。内核源码、KernelSU、SUSFS
+分别遵循其上游 GPL-2.0 许可；详见 [`NOTICE`](NOTICE) 与
+[`SOURCE-MANIFEST.md`](SOURCE-MANIFEST.md)。
+
+本项目与华为、KernelSU、SUSFS、Droidspaces 等无隶属关系。刷机风险自负。

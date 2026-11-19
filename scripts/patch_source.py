@@ -8,6 +8,15 @@ import os, sys
 
 K = sys.argv[1] if len(sys.argv) > 1 else 'src/kernel'
 
+def sub_del(path, old, label):
+    p = os.path.join(K, path)
+    s = open(p, encoding='utf-8', errors='surrogateescape').read()
+    if old not in s:
+        print(f'  [skip] {label}')
+        return
+    open(p, 'w', encoding='utf-8', errors='surrogateescape').write(s.replace(old, '', 1))
+    print(f'  [ok]   {label}')
+
 def sub(path, old, new, label):
     p = os.path.join(K, path)
     s = open(p, encoding='utf-8', errors='surrogateescape').read()
@@ -91,6 +100,6 @@ sub('include/asm-generic/vmlinux.lds.h',
     '\t\t*(COMMON)\t\t\t\t\t\t\\\n',
     '\t\t*(COMMON)\t\t\t\t\t\t\\\n\t\tKEEP(*(.bss.rtic))\t\t\t\\\n',
     'generic lds: fold .bss.rtic into BSS')
-sub('arch/arm64/kernel/vmlinux.lds.S',
+sub_del('arch/arm64/kernel/vmlinux.lds.S',
     '\n\t.bss : {\t\t\t/* bss segment\t\t*/\n         RTIC_BSS\n\t}\n',
-    '\n', 'arm64 lds: drop trailing .bss(rtIC) block')
+    'arm64 lds: drop trailing .bss(rtIC) block')

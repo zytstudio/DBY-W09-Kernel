@@ -1,5 +1,5 @@
 #!/bin/sh
-WS=/home/zyt/dby-w09-kernel
+WS=$(cd "$(dirname "$0")/.." && pwd)
 export PATH=$WS/toolchain/root/usr/lib/llvm-11/bin:$WS/toolchain/root/usr/bin:$PATH
 export LD_LIBRARY_PATH=$WS/toolchain/root/usr/lib/x86_64-linux-gnu:$WS/toolchain/root/usr/lib/llvm-11/lib
 export ARCH=arm64

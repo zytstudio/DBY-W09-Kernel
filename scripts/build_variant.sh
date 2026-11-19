@@ -19,7 +19,7 @@
 # kernel that is permissive from early boot makes this HarmonyOS build reboot
 # before adb/ssh come up.
 set -euo pipefail
-WS=/home/zyt/dby-w09-kernel
+WS=$(cd "$(dirname "$0")/.." && pwd)
 cd "$WS"
 V="${1:?usage: build_variant.sh VARIANT}"
 OUT="$WS/out/$V"

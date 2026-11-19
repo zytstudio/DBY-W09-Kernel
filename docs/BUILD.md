@@ -24,26 +24,34 @@
 
 ---
 
-## 2. 一次性准备源码（已做过，脚本幂等，可重复执行）
+## 2. 一次性准备源码（脚本幂等，可重复执行）
 
 ```sh
-# 2.1 解包
+# 2.1 工具链：下载并解包 Ubuntu clang 11.1.0-6 + binutils 2.38 到 toolchain/root
+scripts/fetch_toolchain.sh
+
+# 2.2 内核源码 + KernelSU + 全部补丁
+#     （解包官方 tar → clone 钉住的 KernelSU → 接线 → patch_source →
+#      SUSFS 内核补丁 → KernelSU 侧补丁 → msm_gem_fault 修复）
+DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
+
+# 2.3 boot 模板：从设备 dump 96 MiB 原厂 boot 分区（或用已知备份）
+scripts/dump_boot_template.sh
+```
+
+`fetch_sources.sh` 等价于手工执行下面这些步骤，用来对照/排错：
+
+```sh
 tar xzf DBY-W09_HarmonyOS4.0.0_opensource.tar.gz -C src Code_Opensource/kernel
 mv src/Code_Opensource/kernel src/kernel
-
-# 2.2 让华为源码能用 clang 11 编过（-Werror 回移、KPROBES 依赖、RTIC 段、lcd_kit stub…）
-python3 scripts/patch_source.py
-
-# 2.3 集成 KernelSU（backslashxx fork，钉在 c16b935d / v3.3.1+，UAPI 5）
-cd src/kernel
-bash KernelSU/kernel/setup.sh c16b935d07e13941774b6eeae1b1a0f8387f0960
-cd -
-
-# 2.4 把 SUSFS 1.5.5 接到内核 + KernelSU（幂等）
-python3 scripts/apply_ksu_susfs.py
-
-# 2.5 修华为 MSM 显示驱动对导入 dma-buf 的 mmap 空指针（容器 GPU 直通会踩到）
-python3 scripts/patch_msm_fault.py
+git clone https://github.com/backslashxx/KernelSU src/kernel/KernelSU
+git -C src/kernel/KernelSU checkout b1365d093208a4ab37a6045f0ab0d89977fad637
+scripts/wire_kernelsu.sh
+python3 scripts/patch_source.py src/kernel
+patch -p1 -d src/kernel < patches/susfs-kernel.diff
+patch -p1 -d src/kernel < patches/susfs-kernel-fixes.diff
+python3 scripts/apply_ksu_susfs.py src/kernel/KernelSU
+python3 scripts/patch_msm_fault.py src/kernel
 ```
 
 `scripts/patch_msm_fault.py`（见 [`M6-anland-crash.md`](M6-anland-crash.md)）：

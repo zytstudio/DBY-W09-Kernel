@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-WS=/home/zyt/dby-w09-kernel
+WS=$(cd "$(dirname "$0")/.." && pwd)
 . "$WS/scripts/env.sh"
 OUT="$1"; shift
 make -C "$WS/src/kernel" O="$OUT" ARCH=arm64 -j${JOBS:-16} \

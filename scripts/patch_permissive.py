@@ -33,6 +33,7 @@ All modes are idempotent and reversible (--disable) and touch only a couple of
 selinux files, so toggling recompiles a handful of objects and relinks.
 """
 import argparse
+import os
 import re
 import sys
 
@@ -115,7 +116,7 @@ def write(p, s):
 
 
 def main():
-    ws = "/home/zyt/dby-w09-kernel"
+    ws = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=["delay", "stealth", "compat", "force"], default="delay")
     ap.add_argument("--delay-sec", type=int, default=20,

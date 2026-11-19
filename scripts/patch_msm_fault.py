@@ -22,6 +22,7 @@ The fix:
 Idempotent: re-running does nothing.  Usage: patch_msm_fault.py [--check]
 """
 import argparse
+import os
 import sys
 
 MARK = "DBY_MSM_GEM_FAULT_FIX"
@@ -71,7 +72,7 @@ FAULT_NEW = """	if (IS_ERR(pages)) {
 
 
 def main():
-    ws = "/home/zyt/dby-w09-kernel"
+    ws = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--srcdir", default=ws + "/src/kernel")

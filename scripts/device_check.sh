@@ -1,19 +1,30 @@
 #!/bin/bash
-# Read-only device status check over adb (preferred) or ssh.
+# Read-only device status check (adb first, ssh as fallback).
 #
 #   scripts/device_check.sh            # one-shot report
-#   scripts/device_check.sh --watch    # sample getenforce for 90 s (for the
-#                                      # permissive images, which flip at
-#                                      # dby_perm_delay seconds after boot)
+#   scripts/device_check.sh --watch    # sample getenforce for 90 s (to see the
+#                                      # 20 s delayed permissive flip)
+#
+# Environment:
+#   ADB=adb                  adb binary
+#   SSH_HOST=user@host       use ssh when adb is not available
+#   SSH_PORT=22              ssh port
 set -u
-ADB=${ADB:-/mnt/c/Users/18210/Desktop/UFI001C/adb.exe}
-SSH_HELPER=${SSH_HELPER:-/tmp/dsh.sh}
+ADB=${ADB:-adb}
+SSH_HOST=${SSH_HOST:-}
+SSH_PORT=${SSH_PORT:-22}
 
-have_adb() { [ -x "$ADB" ] && "$ADB" devices 2>/dev/null | grep -q "device$"; }
+have_adb() { command -v "$ADB" >/dev/null 2>&1 && "$ADB" devices 2>/dev/null | grep -q "device$"; }
 
 sh_() {
-  if have_adb; then "$ADB" shell "$1" 2>/dev/null | tr -d '\r'
-  else "$SSH_HELPER" "$1" 2>/dev/null; fi
+  if have_adb; then
+    "$ADB" shell "$1" 2>/dev/null | tr -d '\r'
+  elif [ -n "$SSH_HOST" ]; then
+    ssh -p "$SSH_PORT" -o StrictHostKeyChecking=accept-new "$SSH_HOST" "$1" 2>/dev/null
+  else
+    echo "error: no adb device and SSH_HOST is not set" >&2
+    return 1
+  fi
 }
 
 report() {

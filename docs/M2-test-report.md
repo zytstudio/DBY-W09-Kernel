@@ -8,7 +8,7 @@ KSU: backslashxx/KernelSU v3.3.0-55 (KSU_VERSION 32656, UAPI 4)
 
 ## 已验证
 
-- 开机正常, `sys.boot_completed=1`, Wi-Fi 连接 192.168.1.215
+- 开机正常, `sys.boot_completed=1`, Wi-Fi 连接（设备局域网 IP）
 - root: `/system/bin/su` -> `uid=0(root)` context `u:r:ksu:s0`
 - KSU 模块运行: zygisk-ptrace64, zygiskd64, lspd, zygisk_lsposed, zygisk-sui, droidspaces daemon
 - cgroup 控制器: devices / pids / net_prio 已出现 (hierarchy 0 = 已启用未挂载)

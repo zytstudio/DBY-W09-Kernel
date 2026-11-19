@@ -18,7 +18,7 @@
 # /proc/config.gz) and disables RELOCATABLE + RANDOMIZE_BASE: the Huawei RTIC
 # section cannot be relocated, the kernel must run at its link address.
 set -e
-WS=/home/zyt/dby-w09-kernel
+WS=$(cd "$(dirname "$0")/.." && pwd)
 OUT="${1:?usage: configure.sh OUTDIR VARIANT}"
 VARIANT="${2:-ksu}"
 . "$WS/scripts/env.sh"
