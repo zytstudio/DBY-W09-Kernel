@@ -16,6 +16,7 @@
 | 工具链 | `toolchain/`：Ubuntu clang 11.1.0-6 + binutils 2.38（`dpkg-deb -x` 解包，见 `scripts/env.sh`） |
 | 模板 | `artifacts/boot_stock_device.img`（设备 stock boot 分区 96 MiB 备份，提供 ramdisk/DTB/cmdline/AVB footer） |
 | 主机 | Linux x86_64，16 线程约 7–9 分钟/变体；磁盘约 5 GB/变体构建树 |
+| 容器（可选） | 不想在本机装依赖和工具链就用 Docker：`docker/run.sh`，工具链已烤进镜像（见 §3.2） |
 
 工具链版本不是随便选的：要和现机内核一致（`Ubuntu clang version 11.1.0-6`，
 `GNU ld (GNU Binutils for Ubuntu) 2.38`），否则华为老代码/RTIC 段容易出问题。
@@ -30,6 +31,7 @@
 
 ```sh
 # 2.1 工具链：下载并解包 Ubuntu clang 11.1.0-6 + binutils 2.38 到 toolchain/root
+#     已经解包过就跳过（--force 强制重解）；用 Docker 构建不需要这一步
 scripts/fetch_toolchain.sh
 
 # 2.2 内核源码 + KernelSU + 全部补丁
@@ -95,7 +97,9 @@ qcacld 用 `$(srctree)`、放开 `KPROBES/KRETPROBES` 的 `HUAWEI_KERNEL_DEBUG` 
 
 ---
 
-## 3. 一条命令构建全部 10 个镜像
+## 3. 构建
+
+### 3.1 本机直接编译
 
 ```sh
 make images      # 5 变体 × 2 模式，串行；结束后自动生成 output/ 和清单
@@ -119,6 +123,58 @@ make ksu
    产物写 `artifacts/boot_<variant>_<mode>.img`。
 
 耗时：单变体首次全量 7–9 分钟（16 线程），permissive 增量 1–2 分钟。
+
+### 3.2 用 Docker 构建（主机不必是 Ubuntu 22.04）
+
+主机只做两件和设备/文件有关的事，解包、打补丁、编译、打包都在容器里：
+
+| 步骤 | 在哪做 | 说明 |
+|---|---|---|
+| 下载华为源码 tar 包（554 MB） | 主机 | 放仓库根目录，或用 `-t` 指定任意路径 |
+| 备份 / 确认 boot 模板 | 主机 | `adb`（`dump_boot_template.sh`）或手动备份的 `boot.img` |
+| 解包源码、clone KernelSU、打全部补丁 | 容器 | `scripts/fetch_sources.sh` |
+| 配置 5 个变体、编译、打包、校验 | 容器 | `make images` |
+| 产物 | 主机 | 直接写回 `out/ artifacts/ output/`，属主是你自己 |
+
+第一次：
+
+```sh
+scripts/dump_boot_template.sh                 # 或：dump_boot_template.sh /path/to/boot.img
+
+docker/run.sh     # 首次先构建镜像（apt 依赖 + 钉死的工具链，约 1 GB）
+                  # 然后 make images；src/kernel 没准备时会先 make bootstrap
+```
+
+镜像基于 `ubuntu:22.04`，内含钉死的 clang 11.1.0-6 + binutils 2.38（装到
+`/opt/dby-toolchain`）。**主机的 `toolchain/` 不会被使用**，所以主机只要有 docker，
+不需要装 clang/binutils，也不需要联网构建（首次 clone KernelSU 除外）。
+
+常用命令：
+
+```sh
+docker/run.sh make ksu-susfs        # 单个变体（两种模式）
+docker/run.sh make check            # 校验已有产物
+docker/run.sh -j 24                 # 线程数（默认主机 nproc）
+docker/run.sh -t ~/Downloads/DBY-W09_HarmonyOS4.0.0_opensource.tar.gz
+docker/run.sh --shell               # 进容器排查：. scripts/env.sh 后直接 make
+docker/run.sh --build               # 改了 Dockerfile 之后重建镜像
+docker/run.sh --build-only          # 只构建镜像
+make docker                         # 等价于 docker/run.sh
+```
+
+几个细节：
+
+- 容器以你的 uid/gid 运行（`--user`），`out/`、`artifacts/` 不会变成 root 所有；
+- 仓库挂到 `/work`，容器里看到的路径和本机一样，脚本不需要改；
+- 追加 `docker run` 参数用 `DBY_DOCKER_ARGS`，例如 `DBY_DOCKER_ARGS='--network host'`，
+  Fedora/SELinux 上读不到仓库时用 `DBY_DOCKER_ARGS='--security-opt label=disable'`；
+- 国内网络：`DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
+  DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build`；
+- arm64 主机（Apple silicon）：`DBY_PLATFORM=linux/amd64`，走 qemu 模拟，很慢，只建议
+  用来验证流程；
+- 离线 / 网络受限：`KSU_DIR=./KSU`（把 KernelSU 树放进仓库）或
+  `KSU_TARBALL=./KernelSU-<commit>.tar.gz`——容器里只能看到仓库内的路径；
+- 磁盘：镜像约 1 GB，构建树还是写在主机的 `out/`（约 5 GB/变体）。
 
 ---
 
@@ -236,6 +292,12 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | 链接报 RTIC 重定位溢出 | 没跑 `scripts/patch_source.py` 的 `.bss.rtic` 合并，或没关 `RELOCATABLE` |
 | 容器里 Anland 桌面一连上就重启 | 华为 msm 驱动 `msm_gem_fault` 对导入 dma-buf 的空指针；确认跑过 `scripts/patch_msm_fault.py` |
 | Anland 连上后 deniald 报 `EGL_ANDROID_native_fence_sync` 缺失 | 容器里 Mesa 用了 llvmpipe（没走 Adreno/kgsl 或 virgl），是用户态 GPU 配置问题，不是内核 |
+| `permission denied while trying to connect to the Docker daemon socket` | 当前用户不在 `docker` 组：`sudo usermod -aG docker $USER`，重新登录后生效 |
+| 容器构建后 `out/`、`artifacts/` 里的文件属主是 root | 用 `sudo docker run` 直接跑过；`sudo chown -R $USER:$USER out artifacts output`。平时用 `docker/run.sh`，它自带 `--user $(id -u):$(id -g)` |
+| `docker build` 卡在 `apt-get` 或下载 deb | 换国内镜像：`DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
+| 容器里 clone KernelSU 失败 | 把 KernelSU 树放进仓库，`KSU_DIR=./KSU docker/run.sh`（或 `KSU_TARBALL=./xxx.tar.gz`） |
+| 容器报 `no toolchain at /opt/dby-toolchain` | 用的不是本项目构建的镜像（`DBY_DOCKER_IMAGE` 指错了），或者镜像不是用 `docker/Dockerfile` 构建的 |
+| Fedora / SELinux 上容器里读不到 `/work` | `DBY_DOCKER_ARGS='--security-opt label=disable' docker/run.sh ...` |
 
 ---
 
@@ -243,6 +305,8 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 
 - 工具链、起点 config、源码补丁、变体开关全部钉死并可重放；
   每个变体的最终 `.config` 存在 `out/images/<variant>.config`。
+- Docker 构建用的是同一份钉死的 clang/binutils，`Image` 只由它们决定（宿主 gcc 只编
+  host 工具），所以容器构建与本机构建的差别仍然只有 UTS 版本串（构建时间）。
 - `KBUILD_BUILD_TIMESTAMP` 未固定，所以同一源码重复构建的镜像不会逐字节相同
   （内核版本串里带编译时间）；功能等价。
 - 关键补丁快照：`patches/susfs-kernel.diff`、`patches/susfs-kernel-fixes.diff`、

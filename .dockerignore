@@ -1,0 +1,7 @@
+# The image build only needs the toolchain fetcher and the entry point; the
+# kernel tree (~1.5 GB), the unpacked toolchain, out/ (~5 GB per variant) and
+# the boot images are bind-mounted at run time instead of being copied into the
+# build context.
+*
+!docker/
+!scripts/

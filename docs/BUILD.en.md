@@ -16,6 +16,7 @@ enforcing/permissive = 10 `boot_<variant>_<mode>.img` files.
 | Toolchain | `toolchain/`: Ubuntu clang 11.1.0-6 + binutils 2.38 (unpacked with `dpkg-deb -x`, see `scripts/env.sh`) |
 | Template | `artifacts/boot_stock_device.img` (96 MiB dump of the stock boot partition: provides ramdisk/DTB/cmdline/AVB footer) |
 | Host | Linux x86_64, 16 threads: about 7-9 minutes per variant; about 5 GB of build tree per variant |
+| Containers (optional) | No toolchain or build dependencies on the host: use Docker, `docker/run.sh` (the toolchain is baked into the image, see 3.2) |
 
 The toolchain versions are not arbitrary: they must match the running kernel
 (`Ubuntu clang version 11.1.0-6`, `GNU ld (GNU Binutils for Ubuntu) 2.38`),
@@ -31,6 +32,7 @@ otherwise Huawei's old code and the RTIC section tend to break.
 
 ```sh
 # 2.1 toolchain: download and unpack Ubuntu clang 11.1.0-6 + binutils 2.38 into toolchain/root
+#     (a no-op when it is already unpacked; --force re-unpacks. Not needed with Docker)
 scripts/fetch_toolchain.sh
 
 # 2.2 kernel source + KernelSU + every patch
@@ -107,7 +109,9 @@ main `.bss`, and an `lcd_kit_dpd.h` stub is generated.
 
 ---
 
-## 3. Build all 10 images with one command
+## 3. Building
+
+### 3.1 On the host
 
 ```sh
 make images      # 5 variants x 2 modes, serially; regenerates output/ and the manifests
@@ -135,6 +139,65 @@ does four things:
 
 Timing: the first full build of one variant takes 7-9 minutes with 16 threads;
 the permissive rebuild takes 1-2 minutes.
+
+### 3.2 With Docker (the host does not have to be Ubuntu 22.04)
+
+The host only does the two things that involve the device or a big file; the
+extraction, patching, compiling and packing all happen in the container:
+
+| Step | Where | Notes |
+|---|---|---|
+| Download the Huawei tarball (554 MB) | host | repo root, or any path via `-t` |
+| Dump / provide the boot template | host | `adb` (`dump_boot_template.sh`) or a `boot.img` you backed up |
+| Extract the sources, clone KernelSU, apply every patch | container | `scripts/fetch_sources.sh` |
+| Configure the 5 variants, compile, pack, verify | container | `make images` |
+| Output | host | written straight into `out/ artifacts/ output/`, owned by you |
+
+First time:
+
+```sh
+scripts/dump_boot_template.sh                 # or: dump_boot_template.sh /path/to/boot.img
+
+docker/run.sh     # builds the image first (apt packages + pinned toolchain, ~1 GB)
+                  # then `make images`; `make bootstrap` first when src/kernel is missing
+```
+
+The image is `ubuntu:22.04` with the pinned clang 11.1.0-6 + binutils 2.38 in
+`/opt/dby-toolchain`. **The host's `toolchain/` is not used**, so any host with
+docker works (no clang/binutils to install) and the build needs no network
+(except the KernelSU clone on the first run).
+
+Everyday commands:
+
+```sh
+docker/run.sh make ksu-susfs        # one variant (both modes)
+docker/run.sh make check            # verify existing images
+docker/run.sh -j 24                 # parallel jobs (default: host nproc)
+docker/run.sh -t ~/Downloads/DBY-W09_HarmonyOS4.0.0_opensource.tar.gz
+docker/run.sh --shell               # shell inside the container: . scripts/env.sh, then make
+docker/run.sh --build               # rebuild the image after changing the Dockerfile
+docker/run.sh --build-only          # only build the image
+make docker                         # same as docker/run.sh
+```
+
+Details:
+
+- The container runs as your uid/gid (`--user`), so `out/` and `artifacts/` do
+  not end up owned by root;
+- the repo is mounted at `/work`, so paths inside the container match the host
+  and the scripts need no changes;
+- extra `docker run` arguments go through `DBY_DOCKER_ARGS`, e.g.
+  `DBY_DOCKER_ARGS='--network host'`, or `--security-opt label=disable` on
+  Fedora/SELinux hosts;
+- slow apt/deb downloads: `DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
+  DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build`;
+- arm64 host (Apple silicon): `DBY_PLATFORM=linux/amd64` (qemu emulation, very
+  slow, only useful to validate the flow);
+- offline / restricted network: `KSU_DIR=./KSU` (KernelSU tree inside the repo)
+  or `KSU_TARBALL=./KernelSU-<commit>.tar.gz`; only paths inside the repo are
+  visible in the container;
+- disk: the image is about 1 GB, the build trees still live in the host's
+  `out/` (about 5 GB per variant).
 
 ---
 
@@ -260,6 +323,12 @@ or `userdata`.
 | Link fails with an RTIC relocation overflow | The `.bss.rtic` fold from `scripts/patch_source.py` is missing, or `RELOCATABLE` was not disabled |
 | The device reboots as soon as the Anland desktop connects | NULL dereference in Huawei's `msm_gem_fault` on imported dma-bufs; make sure `scripts/patch_msm_fault.py` was applied |
 | After Anland connects, deniald reports missing `EGL_ANDROID_native_fence_sync` | Mesa in the container selected llvmpipe (no Adreno/kgsl or virgl); this is a userspace GPU configuration issue, not the kernel |
+| `permission denied while trying to connect to the Docker daemon socket` | Your user is not in the `docker` group: `sudo usermod -aG docker $USER`, then log in again |
+| `out/` and `artifacts/` are owned by root after a container build | A plain `sudo docker run` was used; `sudo chown -R $USER:$USER out artifacts output`. `docker/run.sh` passes `--user $(id -u):$(id -g)` for you |
+| `docker build` stalls in `apt-get` or while downloading the debs | Use a mirror: `DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
+| Cloning KernelSU fails inside the container | Put a KernelSU tree in the repo and use `KSU_DIR=./KSU docker/run.sh` (or `KSU_TARBALL=./xxx.tar.gz`) |
+| The container reports `no toolchain at /opt/dby-toolchain` | The image was not built from this project's `docker/Dockerfile` (check `DBY_DOCKER_IMAGE`) |
+| On Fedora/SELinux the container cannot read `/work` | `DBY_DOCKER_ARGS='--security-opt label=disable' docker/run.sh ...` |
 
 ---
 
@@ -268,6 +337,10 @@ or `userdata`.
 - Toolchain, base config, source patches and variant switches are all pinned
   and replayable; each variant's final `.config` is saved to
   `out/images/<variant>.config`.
+- Docker builds use the same pinned clang/binutils, and the `Image` is produced
+  by those only (the host gcc compiles host tools), so a container build and a
+  host build differ only in the UTS version string (build time), just like two
+  host builds do.
 - `KBUILD_BUILD_TIMESTAMP` is not fixed, so rebuilding the same source does not
   produce byte-identical images (the build time is embedded in the kernel
   version string). Functionally they are equivalent.

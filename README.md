@@ -18,6 +18,7 @@ cgroup/netfilter/macvlan 选项全开。
 | 目录 | 内容 |
 |---|---|
 | `scripts/` | 取源码/工具链、打补丁、配置、编译、打包、校验、刷机 |
+| `docker/` | Dockerfile 与封装脚本：在容器里完成解包、编译、打包 |
 | `patches/` | SUSFS 内核补丁、KernelSU 侧补丁、permissive 补丁（可复现的快照） |
 | `configs/running.config` | 设备原厂 `/proc/config.gz`，所有变体的配置基线 |
 | `Makefile` | `make images` 等入口 |
@@ -34,6 +35,7 @@ cgroup/netfilter/macvlan 选项全开。
 git clone <this repo> && cd dby-w09-kernel
 
 # 1) 交叉工具链：Ubuntu clang 11.1.0-6 + binutils 2.38，解包到 toolchain/root
+#    （用 Docker 构建可以跳过这一步，工具链在镜像里）
 scripts/fetch_toolchain.sh
 
 # 2) 内核源码：从华为开源页面下载 DBY-W09_HarmonyOS4.0.0_opensource.tar.gz
@@ -46,7 +48,7 @@ scripts/dump_boot_template.sh
 #    已经有手动备份的 boot.img 时，直接装进模板（脚本会先校验）
 scripts/dump_boot_template.sh /path/to/boot_stock_device.img
 
-# 4) 构建全部 10 个镜像（16 线程，约 40 分钟）
+# 4) 构建全部 10 个镜像（16 线程，约 40 分钟；Docker 用 make docker）
 make images
 ```
 
@@ -68,7 +70,23 @@ make list          # 打印变体矩阵
 ```
 
 环境要求：Linux x86_64、16 线程（8 GB 内存起）、约 5 GB/变体构建空间、
-`python3`、`patch`、`dpkg-deb`、`git`、`curl`。
+`python3`、`patch`、`dpkg-deb`、`git`、`curl`。不想在主机装这些就用 Docker（见下）。
+
+## Docker 构建
+
+不想在主机装 clang/binutils：解包源码、clone KernelSU、打补丁、编译、打包都在容器里，
+主机只负责下载 tar 包和备份 boot 分区。
+
+```sh
+docker/run.sh           # 首次自动构建镜像（约 1 GB），然后 make images
+make docker             # 等价写法
+docker/run.sh --shell   # 进容器排查，环境变量已就绪
+```
+
+镜像基于 Ubuntu 22.04，钉死的 clang 11.1.0-6 + binutils 2.38 装在 `/opt/dby-toolchain`
+（不使用主机的 `toolchain/`），构建过程不需要联网（首次 clone KernelSU 除外）；容器以你的
+uid 运行，产物直接写回 `out/ artifacts/ output/`。tar 包不在仓库里就用
+`docker/run.sh -t /path/to/xxx.tar.gz`。详见 [`docs/BUILD.md`](docs/BUILD.md) §3.2。
 
 ## 变体
 

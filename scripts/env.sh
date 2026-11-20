@@ -1,6 +1,9 @@
 #!/bin/sh
 # Source me before building:  . scripts/env.sh
 #
+# DBY_TOOLCHAIN: where the unpacked clang/binutils live (default <repo>/toolchain,
+# written by scripts/fetch_toolchain.sh; the docker image bakes it elsewhere).
+#
 # Resolve this file's own directory: when the file is sourced, $0 is the calling
 # shell, so use BASH_SOURCE when available and only fall back to $0 otherwise.
 DBY_SRC=${BASH_SOURCE:-$0}
@@ -13,8 +16,11 @@ if [ ! -f "$WS/scripts/env.sh" ]; then
   return 1 2>/dev/null || exit 1
 fi
 
-export PATH=$WS/toolchain/root/usr/lib/llvm-11/bin:$WS/toolchain/root/usr/bin:$PATH
-export LD_LIBRARY_PATH=$WS/toolchain/root/usr/lib/x86_64-linux-gnu:$WS/toolchain/root/usr/lib/llvm-11/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+# DBY_TOOLCHAIN lets a caller point at a toolchain outside the repo; the docker
+# image uses it for the copy baked in at /opt/dby-toolchain.
+TC=${DBY_TOOLCHAIN:-$WS/toolchain}
+export PATH=$TC/root/usr/lib/llvm-11/bin:$TC/root/usr/bin:$PATH
+export LD_LIBRARY_PATH=$TC/root/usr/lib/x86_64-linux-gnu:$TC/root/usr/lib/llvm-11/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-linux-gnu-
 export CC=clang

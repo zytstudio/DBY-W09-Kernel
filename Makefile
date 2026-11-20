@@ -5,8 +5,11 @@
 #   make check       verify every produced image against the stock template
 #   make list        show the matrix and what each variant contains
 #   make distclean   drop per-variant build trees (keeps images/artifacts)
+#   make docker      build all 10 images inside the builder container
+#   make docker-shell  shell in that container (toolchain/env already set up)
 #
-# Requirements: toolchain/ (clang 11.1.0-6 + binutils 2.38, see scripts/env.sh),
+# Requirements: toolchain/ (clang 11.1.0-6 + binutils 2.38, see scripts/env.sh) --
+# or the docker image, which bakes the toolchain in (docker/run.sh),
 # src/kernel/ patched by scripts/patch_source.py + scripts/apply_ksu_susfs.py,
 # configs/running.config, artifacts/boot_stock_device.img.
 #
@@ -25,7 +28,8 @@ DIST     := output
 MODES    := enforcing permissive
 IMAGES   := $(foreach v,$(VARIANTS),$(foreach m,$(MODES),artifacts/boot_$(v)_$(m).img))
 
-.PHONY: all bootstrap images check list distclean manifest dist $(VARIANTS)
+.PHONY: all bootstrap images check list distclean manifest dist $(VARIANTS) \
+        docker-image docker docker-shell
 
 all: images
 
@@ -83,6 +87,14 @@ list:
 	@echo "             enforcing and flip at dby_perm_delay seconds (20), because"
 	@echo "             early permissive + the container options trips Huawei's"
 	@echo "             bootfail loop.  PERM_DELAY=NN overrides at build time."
+
+# Container build: same targets, host only needs docker (and the source tarball).
+docker-image:
+	docker/run.sh --build-only
+docker:
+	docker/run.sh
+docker-shell:
+	docker/run.sh --shell
 
 distclean:
 	rm -rf $(foreach v,$(VARIANTS),out/$(v)) out/images

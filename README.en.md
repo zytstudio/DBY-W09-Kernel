@@ -19,6 +19,7 @@ cgroup/netfilter/macvlan options Docker and DroidSpaces need are enabled.
 | Path | Contents |
 |---|---|
 | `scripts/` | fetch sources/toolchain, patch, configure, build, pack, verify, flash |
+| `docker/` | Dockerfile and wrapper: extract, build and pack inside a container |
 | `patches/` | SUSFS kernel patch, KernelSU-side patch, reproducible snapshots |
 | `configs/running.config` | the device's stock `/proc/config.gz`, the base for every variant |
 | `Makefile` | `make images` and friends |
@@ -37,6 +38,7 @@ Releases or from your own build.
 git clone <this repo> && cd dby-w09-kernel
 
 # 1) cross toolchain: Ubuntu clang 11.1.0-6 + binutils 2.38, unpacked into toolchain/root
+#    (skip this with Docker, the image already carries the toolchain)
 scripts/fetch_toolchain.sh
 
 # 2) kernel source: download DBY-W09_HarmonyOS4.0.0_opensource.tar.gz from
@@ -50,7 +52,7 @@ scripts/dump_boot_template.sh
 #    already have your own boot.img backup? install it as the template (validated)
 scripts/dump_boot_template.sh /path/to/boot_stock_device.img
 
-# 4) build all 10 images (16 threads, about 40 minutes)
+# 4) build all 10 images (16 threads, about 40 minutes; Docker: make docker)
 make images
 ```
 
@@ -74,7 +76,27 @@ make list          # print the variant matrix
 ```
 
 Requirements: Linux x86_64, 16 threads (8 GB RAM or more), about 5 GB of build
-space per variant, `python3`, `patch`, `dpkg-deb`, `git`, `curl`.
+space per variant, `python3`, `patch`, `dpkg-deb`, `git`, `curl`. Nothing but docker
+to install if you build in a container (see below).
+
+## Docker builds
+
+Nothing to install on the host: extraction, the KernelSU clone, patching, compiling
+and packing all run in a container; the host only downloads the tarball and dumps the
+boot partition.
+
+```sh
+docker/run.sh           # builds the image on first use (~1 GB), then make images
+make docker             # same thing
+docker/run.sh --shell   # shell in the container, environment already set up
+```
+
+The image is Ubuntu 22.04 with the pinned clang 11.1.0-6 + binutils 2.38 in
+`/opt/dby-toolchain` (the host's `toolchain/` is never used), and the build needs no
+network (except the KernelSU clone on the first run). The container runs as your uid,
+so the images land in `out/ artifacts/ output/` owned by you. Tarball somewhere else?
+`docker/run.sh -t /path/to/xxx.tar.gz`. Details:
+[`docs/BUILD.en.md`](docs/BUILD.en.md) section 3.2.
 
 ## Variants
 
