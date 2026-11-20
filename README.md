@@ -32,7 +32,7 @@ cgroup/netfilter/macvlan 选项全开。
 ## 快速开始
 
 ```sh
-git clone <this repo> && cd dby-w09-kernel
+git clone https://github.com/zytstudio/DBY-W09-Kernel && cd DBY-W09-Kernel
 
 # 1) 交叉工具链：Ubuntu clang 11.1.0-6 + binutils 2.38，解包到 toolchain/root
 #    （用 Docker 构建可以跳过这一步，工具链在镜像里）

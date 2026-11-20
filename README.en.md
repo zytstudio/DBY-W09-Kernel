@@ -35,7 +35,7 @@ Releases or from your own build.
 ## Quick start
 
 ```sh
-git clone <this repo> && cd dby-w09-kernel
+git clone https://github.com/zytstudio/DBY-W09-Kernel && cd DBY-W09-Kernel
 
 # 1) cross toolchain: Ubuntu clang 11.1.0-6 + binutils 2.38, unpacked into toolchain/root
 #    (skip this with Docker, the image already carries the toolchain)
