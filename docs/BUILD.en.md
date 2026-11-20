@@ -42,6 +42,27 @@ DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
 scripts/dump_boot_template.sh
 ```
 
+`fetch_sources.sh` is idempotent: once patched it drops a marker at
+`src/kernel/.dby_prepared` and then verifies by content that the tree really was
+patched exactly once (`fs/susfs.c`, `fs/susfs_prctl.c` and
+`include/linux/susfs.h` exist, `fs/namespace.c` has a single
+`DEFINE_IDA(susfs_mnt_id_ida)`, no `*.rej` files). If that holds it skips the
+work, so re-running is a no-op.
+
+**Recovering a broken source tree.** If the script was interrupted, the sources
+were edited by hand, or an older version of the script patched an already
+patched tree (symptoms: `*.rej` files, `DEFINE_IDA` twice, `susfs_def.h`
+duplicated), it stops and tells you to run:
+
+```sh
+scripts/fetch_sources.sh --force
+```
+
+`--force` deletes `src/kernel`, re-extracts the tarball (~1.5 GB, a few
+minutes) and runs every step again. Build output in `out/`, `artifacts/` and
+`output/` is left alone, and the extraction scratch directory lives in
+`.cache/`, not `/tmp`.
+
 `fetch_sources.sh` is equivalent to running the following by hand, which is
 useful when comparing or debugging:
 
@@ -218,6 +239,8 @@ or `userdata`.
 | `SUS_MOUNT` conflicts with DroidSpaces | Use variant 5 (containers + SUSFS, `SUS_MOUNT` disabled) instead of variant 3 |
 | `ksu_susfs` says "Requires susfs v1.5.3+" | The userspace tool must use `prctl(0xDEADBEEF, ...)`; this kernel is SUSFS 1.5.5 with that prctl dispatcher |
 | `fetch_sources.sh` fails while cloning KernelSU | Network restriction; use `KSU_URL=<mirror>`, or `KSU_TARBALL=<tar.gz>` / `KSU_DIR=<local KernelSU tree>` |
+| `src/kernel looks partially patched but has no valid marker` | The tree is half patched (happens when an older version of the script patched it twice); recover with `scripts/fetch_sources.sh --force` |
+| Patching prints `*.rej` / `Hunk #N FAILED` | The tree is not pristine; rebuild with `--force`. The script dry-runs each patch first, so a failure no longer leaves a half-patched tree |
 | Build fails on `lcd_kit_dpd.h` | `scripts/patch_source.py` was not run (it generates the stub) |
 | Link fails with an RTIC relocation overflow | The `.bss.rtic` fold from `scripts/patch_source.py` is missing, or `RELOCATABLE` was not disabled |
 | The device reboots as soon as the Anland desktop connects | NULL dereference in Huawei's `msm_gem_fault` on imported dma-bufs; make sure `scripts/patch_msm_fault.py` was applied |

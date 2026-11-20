@@ -49,6 +49,13 @@ make images
 
 产物在 `output/`：`boot_<variant>_<mode>.img` + `SHA256SUMS`（中间产物在 `artifacts/`）。
 
+`fetch_sources.sh` 会在 `src/kernel` 留标记并做内容校验，所以重复执行是空操作；
+如果源码树被打坏（残留 `.rej`、补丁被重复应用），直接重新解包重打：
+
+```sh
+scripts/fetch_sources.sh --force     # 删掉 src/kernel 从 tar 重新解包并走完全部步骤
+```
+
 只构建一组：
 
 ```sh

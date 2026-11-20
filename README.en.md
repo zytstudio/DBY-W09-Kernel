@@ -54,6 +54,14 @@ make images
 The results land in `output/`: `boot_<variant>_<mode>.img` plus `SHA256SUMS`
 (intermediate files stay in `artifacts/`).
 
+`fetch_sources.sh` leaves a marker in `src/kernel` and verifies the tree by
+content, so re-running it is a no-op. If the tree gets corrupted (leftover
+`*.rej`, patches applied twice), re-extract and re-patch it in one go:
+
+```sh
+scripts/fetch_sources.sh --force     # delete src/kernel, re-extract the tarball, run every step
+```
+
 Build a single set:
 
 ```sh

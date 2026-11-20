@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fetch and prepare everything needed to build the DBY-W09 kernel:
+# Fetch and prepare everything needed to build the DBY-W09 kernel.
 #
 #   1. extract the official Huawei open-source tarball into src/kernel
 #   2. clone the pinned KernelSU fork into src/kernel/KernelSU
@@ -10,7 +10,13 @@
 #   7. apply the msm_gem_fault fix (container/Anland hang)
 #
 # Usage:
-#   scripts/fetch_sources.sh
+#   scripts/fetch_sources.sh [--force]
+#
+#   --force   throw away src/kernel and extract/prepare it from scratch
+#
+# Re-running on an already prepared tree is a no-op: a marker plus content
+# checks guard against applying the patches twice. If the tree looks partially
+# patched, the script refuses to continue and asks for --force.
 #
 # Environment:
 #   DBY_TARBALL   path to DBY-W09_HarmonyOS4.0.0_opensource.tar.gz
@@ -19,8 +25,8 @@
 #   KSU_URL       KernelSU git remote (default backslashxx/KernelSU)
 #   KSU_COMMIT    pinned KernelSU commit
 #   KSU_DIR       local KernelSU tree to copy instead of cloning
-#   KSU_TARBALL   offline KernelSU archive (repo tarball/zip) to use instead of
-#                 cloning; a single top-level directory is stripped if present
+#   KSU_TARBALL   offline KernelSU archive instead of cloning (a single
+#                 top-level directory is stripped if present)
 #
 # The tarball itself is not part of this repository (554 MB); download it from
 # Huawei's open-source release page and check the sha256 in SOURCE-MANIFEST.md.
@@ -28,11 +34,24 @@ if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail
 WS=$(cd "$(dirname "$0")/.." && pwd)
 cd "$WS"
+mkdir -p "$WS/.cache"
+
+FORCE=0
+for arg in "$@"; do
+  case "$arg" in
+    --force) FORCE=1 ;;
+    -h|--help) awk 'NR>1 && /^if \[ -z/{exit} NR>1{print}' "$0"; exit 0 ;;
+    *) echo "error: unknown argument '$arg' (try --help)" >&2; exit 2 ;;
+  esac
+done
 
 TARBALL=${DBY_TARBALL:-$WS/DBY-W09_HarmonyOS4.0.0_opensource.tar.gz}
 SHA256=52c38060cf2990e44bbc556f39271f6e97af90777a300165443946aa97c72e5f
 KSU_URL=${KSU_URL:-https://github.com/backslashxx/KernelSU}
 KSU_COMMIT=${KSU_COMMIT:-b1365d093208a4ab37a6045f0ab0d89977fad637}
+KERNEL=$WS/src/kernel
+KSU=$KERNEL/KernelSU
+MARKER=$KERNEL/.dby_prepared
 
 say() { printf '\n== %s\n' "$*"; }
 
@@ -44,9 +63,50 @@ need() {
 }
 for c in git python3 patch tar sha256sum; do need "$c"; done
 
+# Content checks that prove the kernel side is fully and exactly once patched.
+verify_prepared() {
+  local d=$KERNEL n
+  [ -f "$d/fs/susfs.c" ] || return 1
+  [ -f "$d/fs/susfs_prctl.c" ] || return 1
+  [ -f "$d/include/linux/susfs.h" ] || return 1
+  [ -f "$d/fs/namespace.c" ] || return 1
+  grep -q 'KSU_SUSFS' "$d/fs/Makefile" 2>/dev/null || return 1
+  n=$(grep -c 'DEFINE_IDA(susfs_mnt_id_ida)' "$d/fs/namespace.c" 2>/dev/null || true)
+  [ "$n" = "1" ] || return 1
+  if find "$d" -name '*.rej' -print -quit | grep -q .; then return 1; fi
+  return 0
+}
+
+apply() {
+  local p=$1 log=$WS/.cache/patch-dryrun.log
+  if patch -p1 -R --dry-run -s -d "$KERNEL" < "$WS/$p" >/dev/null 2>&1; then
+    echo "   $p (already applied)"
+    return 0
+  fi
+  echo "   $p"
+  # Dry run first so a partially applicable patch aborts with a readable
+  # report instead of leaving .rej files scattered over the tree.
+  if ! patch -p1 -N --dry-run -d "$KERNEL" < "$WS/$p" > "$log" 2>&1; then
+    echo "error: $p does not apply cleanly to src/kernel:" >&2
+    grep -E 'Hunk #[0-9]+ (FAILED|succeeded)|^patching file' "$log" >&2 || true
+    echo "       The tree is not pristine. Re-run with --force to rebuild it." >&2
+    exit 1
+  fi
+  patch -p1 -N -s -d "$KERNEL" < "$WS/$p"
+}
+
 say "1/7 kernel source"
-if [ -f "$WS/src/kernel/Makefile" ] && [ -f "$WS/src/kernel/init/main.c" ]; then
-  echo "   src/kernel already present, skipping extraction"
+[ "$FORCE" = "1" ] && rm -rf "$KERNEL"
+if [ -f "$KERNEL/Makefile" ] && [ -f "$KERNEL/init/main.c" ]; then
+  if [ -f "$MARKER" ] && verify_prepared; then
+    echo "   src/kernel already prepared, leaving it alone"
+  elif [ -f "$KERNEL/fs/susfs.c" ] || [ -f "$KERNEL/include/linux/susfs.h" ]; then
+    echo "error: src/kernel looks partially patched but has no valid marker." >&2
+    echo "       Re-run with --force to extract and prepare it from scratch." >&2
+    exit 1
+  else
+    echo "   src/kernel present but not patched yet, continuing"
+  fi
 else
   [ -f "$TARBALL" ] || {
     echo "error: $TARBALL not found." >&2
@@ -57,7 +117,10 @@ else
     echo "   verifying sha256 ..."
     echo "$SHA256  $TARBALL" | sha256sum -c -
   fi
-  tmp=$(mktemp -d)
+  mkdir -p "$WS/.cache"
+  tmp=$WS/.cache/extract.$$
+  rm -rf "$tmp"
+  mkdir -p "$tmp"
   echo "   extracting (about 1.5 GB) ..."
   tar xzf "$TARBALL" -C "$tmp" Code_Opensource/kernel || {
     echo "error: cannot extract Code_Opensource/kernel from $TARBALL." >&2
@@ -66,13 +129,13 @@ else
     exit 1
   }
   mkdir -p "$WS/src"
-  rm -rf "$WS/src/kernel"
-  mv "$tmp/Code_Opensource/kernel" "$WS/src/kernel"
+  rm -rf "$KERNEL"
+  mv "$tmp/Code_Opensource/kernel" "$KERNEL"
   rm -rf "$tmp"
+  rm -f "$MARKER"
 fi
 
 say "2/7 KernelSU (pinned $KSU_COMMIT)"
-KSU=$WS/src/kernel/KernelSU
 if [ -n "${KSU_DIR:-}" ]; then
   echo "   copying KernelSU from $KSU_DIR"
   [ -d "$KSU_DIR/kernel" ] || { echo "error: $KSU_DIR is not a KernelSU tree" >&2; exit 1; }
@@ -89,7 +152,6 @@ elif [ -n "${KSU_TARBALL:-}" ]; then
     rm -rf "$tmpk"
     exit 1
   }
-  # GitHub archives have one top-level directory, `git archive` does not.
   entries=$(ls -A "$tmpk" | wc -l)
   src=$tmpk
   if [ "$entries" -eq 1 ] && [ -d "$tmpk/$(ls -A "$tmpk")" ]; then
@@ -104,7 +166,8 @@ elif [ ! -d "$KSU/.git" ]; then
     echo "error: could not clone $KSU_URL" >&2
     echo "       behind a firewall/proxy? Either" >&2
     echo "         KSU_URL=<mirror> scripts/fetch_sources.sh" >&2
-    echo "       or download the repo archive and run" >&2
+    echo "       or use a local copy / archive:" >&2
+    echo "         KSU_DIR=/path/to/KernelSU scripts/fetch_sources.sh" >&2
     echo "         KSU_TARBALL=/path/to/KernelSU-<commit>.tar.gz scripts/fetch_sources.sh" >&2
     rm -rf "$KSU"
     exit 1
@@ -116,38 +179,38 @@ if [ -d "$KSU/.git" ]; then
     echo "error: cannot check out $KSU_COMMIT in $KSU" >&2
     exit 1
   }
-fi
-if [ -d "$KSU/.git" ]; then
   git -C "$KSU" log --oneline -1
 else
   echo "   (offline archive, no git metadata)"
 fi
 
 say "3/7 wire KernelSU into the kernel build"
-"$WS/scripts/wire_kernelsu.sh" "$WS/src/kernel"
+"$WS/scripts/wire_kernelsu.sh" "$KERNEL"
 
 say "4/7 vendor source compile fixes"
-python3 "$WS/scripts/patch_source.py" "$WS/src/kernel"
+python3 "$WS/scripts/patch_source.py" "$KERNEL"
 
 say "5/7 SUSFS 1.5.5 kernel patch"
-apply() {
-  local p=$1
-  echo "   $p"
-  patch -p1 -N -r - -d "$WS/src/kernel" < "$WS/$p" >/dev/null || true
-}
-apply patches/susfs-kernel.diff
-apply patches/susfs-kernel-fixes.diff
-if find "$WS/src/kernel" -name '*.rej' -print -quit | grep -q .; then
-  echo "error: rejected hunks, see the .rej files under src/kernel" >&2
-  find "$WS/src/kernel" -name '*.rej' | head
-  exit 1
+if [ -f "$MARKER" ] && verify_prepared; then
+  echo "   already prepared, skipping"
+else
+  find "$KERNEL" \( -name '*.rej' -o -name '*.orig' \) -delete
+  apply patches/susfs-kernel.diff
+  apply patches/susfs-kernel-fixes.diff
+  if ! verify_prepared; then
+    echo "error: the kernel tree is not in the expected patched state." >&2
+    echo "       Remove src/kernel and run again with --force." >&2
+    find "$KERNEL" -name '*.rej' | head
+    exit 1
+  fi
+  touch "$MARKER"
 fi
 
 say "6/7 KernelSU-side SUSFS patch"
-python3 "$WS/scripts/apply_ksu_susfs.py" "$WS/src/kernel/KernelSU"
+python3 "$WS/scripts/apply_ksu_susfs.py" "$KSU"
 
 say "7/7 msm_gem_fault fix"
-python3 "$WS/scripts/patch_msm_fault.py" --srcdir "$WS/src/kernel"
+python3 "$WS/scripts/patch_msm_fault.py" --srcdir "$KERNEL"
 
 say "done"
 cat <<EOF

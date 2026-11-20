@@ -41,6 +41,23 @@ DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
 scripts/dump_boot_template.sh
 ```
 
+`fetch_sources.sh` 是幂等的：打完补丁会在 `src/kernel/.dby_prepared` 留标记，并用
+内容检查确认源码确实"只打了一遍"（`fs/susfs.c`/`fs/susfs_prctl.c`/`include/linux/susfs.h`
+都在、`fs/namespace.c` 里只有一个 `DEFINE_IDA(susfs_mnt_id_ida)`、没有 `*.rej`），
+满足就直接跳过，重复执行是空操作。
+
+**源码树打坏了怎么恢复。** 如果中途 Ctrl-C、手工改过源码，或者旧版本脚本在已打补丁的
+树上又打了一遍（症状：出现 `*.rej`、`DEFINE_IDA` 两次、`susfs_def.h` 内容整体重复），
+脚本会停下并提示：
+
+```sh
+scripts/fetch_sources.sh --force
+```
+
+`--force` 会删掉 `src/kernel`、从 tar 重新解包（约 1.5 GB，几分钟）再走完下面全部步骤；
+`out/`、`artifacts/`、`output/` 里的构建产物不受影响。解包临时目录放在 `.cache/`，
+不会占 `/tmp`。
+
 `fetch_sources.sh` 等价于手工执行下面这些步骤，用来对照/排错：
 
 ```sh
@@ -201,6 +218,8 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | `SUS_MOUNT` 与 DroidSpaces 冲突 | 用变体 5（容器 + SUSFS，`SUS_MOUNT` 关闭）而不是变体 3 |
 | `ksu_susfs` 报 Requires susfs v1.5.3+ | 用户态要用 `prctl(0xDEADBEEF, ...)` 的版本；本内核是 SUSFS 1.5.5 + 该 prctl 分发器 |
 | `fetch_sources.sh` 在 clone KernelSU 时失败 | 网络受限；可 `KSU_URL=<镜像> scripts/fetch_sources.sh`，或 `KSU_TARBALL=<tar.gz>` / `KSU_DIR=<本地 KernelSU 目录>` |
+| 提示 `src/kernel looks partially patched but has no valid marker` | 源码树是半打补丁状态（旧版脚本重复打补丁会这样）；`scripts/fetch_sources.sh --force` 重新解包重打 |
+| 打补丁时出现 `*.rej` / `Hunk #N FAILED` | 源码树不干净；同样用 `--force` 重建，脚本会先 `--dry-run` 再真正打，失败时不会留下半成品 |
 | 构建报 `lcd_kit_dpd.h` 找不到 | 没跑 `scripts/patch_source.py`（会生成 stub） |
 | 链接报 RTIC 重定位溢出 | 没跑 `scripts/patch_source.py` 的 `.bss.rtic` 合并，或没关 `RELOCATABLE` |
 | 容器里 Anland 桌面一连上就重启 | 华为 msm 驱动 `msm_gem_fault` 对导入 dma-buf 的空指针；确认跑过 `scripts/patch_msm_fault.py` |
