@@ -18,6 +18,9 @@
 #   DBY_SKIP_SHA  set to 1 to skip the tarball sha256 check
 #   KSU_URL       KernelSU git remote (default backslashxx/KernelSU)
 #   KSU_COMMIT    pinned KernelSU commit
+#   KSU_TARBALL   offline KernelSU archive (repo tarball/zip) to use instead of
+#                 cloning; extracted into src/kernel/KernelSU with one top dir
+#                 stripped
 #
 # The tarball itself is not part of this repository (554 MB); download it from
 # Huawei's open-source release page and check the sha256 in SOURCE-MANIFEST.md.
@@ -32,8 +35,16 @@ KSU_COMMIT=${KSU_COMMIT:-b1365d093208a4ab37a6045f0ab0d89977fad637}
 
 say() { printf '\n== %s\n' "$*"; }
 
+need() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "error: required command '$1' not found in PATH" >&2
+    exit 1
+  }
+}
+for c in git python3 patch tar sha256sum; do need "$c"; done
+
 say "1/7 kernel source"
-if [ -f "$WS/src/kernel/Makefile" ]; then
+if [ -f "$WS/src/kernel/Makefile" ] && [ -f "$WS/src/kernel/init/main.c" ]; then
   echo "   src/kernel already present, skipping extraction"
 else
   [ -f "$TARBALL" ] || {
@@ -47,7 +58,12 @@ else
   fi
   tmp=$(mktemp -d)
   echo "   extracting (about 1.5 GB) ..."
-  tar xzf "$TARBALL" -C "$tmp" Code_Opensource/kernel
+  tar xzf "$TARBALL" -C "$tmp" Code_Opensource/kernel || {
+    echo "error: cannot extract Code_Opensource/kernel from $TARBALL." >&2
+    echo "       Is it the DBY-W09 HarmonyOS 4.0.0 kernel source archive?" >&2
+    rm -rf "$tmp"
+    exit 1
+  }
   mkdir -p "$WS/src"
   rm -rf "$WS/src/kernel"
   mv "$tmp/Code_Opensource/kernel" "$WS/src/kernel"
@@ -55,13 +71,36 @@ else
 fi
 
 say "2/7 KernelSU (pinned $KSU_COMMIT)"
-if [ ! -d "$WS/src/kernel/KernelSU/.git" ]; then
-  rm -rf "$WS/src/kernel/KernelSU"
-  git clone "$KSU_URL" "$WS/src/kernel/KernelSU"
+KSU=$WS/src/kernel/KernelSU
+if [ -n "${KSU_TARBALL:-}" ]; then
+  echo "   using offline archive $KSU_TARBALL"
+  rm -rf "$KSU"
+  mkdir -p "$KSU"
+  tar xf "$KSU_TARBALL" -C "$KSU" --strip-components=1 || {
+    echo "error: cannot extract $KSU_TARBALL" >&2
+    exit 1
+  }
+elif [ ! -d "$KSU/.git" ]; then
+  rm -rf "$KSU"
+  echo "   cloning $KSU_URL"
+  git clone "$KSU_URL" "$KSU" || {
+    echo "error: could not clone $KSU_URL" >&2
+    echo "       behind a firewall/proxy? Either" >&2
+    echo "         KSU_URL=<mirror> scripts/fetch_sources.sh" >&2
+    echo "       or download the repo archive and run" >&2
+    echo "         KSU_TARBALL=/path/to/KernelSU-<commit>.tar.gz scripts/fetch_sources.sh" >&2
+    rm -rf "$KSU"
+    exit 1
+  }
 fi
-git -C "$WS/src/kernel/KernelSU" fetch --all --tags --quiet || true
-git -C "$WS/src/kernel/KernelSU" checkout -f "$KSU_COMMIT"
-git -C "$WS/src/kernel/KernelSU" log --oneline -1
+if [ -d "$KSU/.git" ]; then
+  git -C "$KSU" fetch --all --tags --quiet || true
+  git -C "$KSU" checkout -f "$KSU_COMMIT" || {
+    echo "error: cannot check out $KSU_COMMIT in $KSU" >&2
+    exit 1
+  }
+fi
+git -C "$KSU" log --oneline -1 2>/dev/null || echo "   (offline archive, no git metadata)"
 
 say "3/7 wire KernelSU into the kernel build"
 "$WS/scripts/wire_kernelsu.sh" "$WS/src/kernel"
