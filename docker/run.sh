@@ -23,6 +23,9 @@
 #   DOCKER             container CLI to use (default docker)
 #   DBY_DOCKER_ARGS    extra `docker run` arguments, e.g. '--network host' or
 #                      '--security-opt label=disable' (SELinux hosts)
+#   DBY_BASE_IMAGE     base tag for the image build, e.g.
+#                      docker.m.daocloud.io/library/ubuntu:22.04 (Docker Hub may
+#                      be unreachable from mainland China)
 #   DBY_APT_MIRROR     apt mirror for the image build, e.g. mirrors.tuna.tsinghua.edu.cn
 #   DBY_UBUNTU_ARCHIVE mirror for the toolchain debs
 #   DBY_PLATFORM       --platform for `docker build`, e.g. linux/amd64 on arm64
@@ -103,10 +106,17 @@ image_exists() { "$DOCKER" image inspect "$IMAGE" >/dev/null 2>&1; }
 build_image() {
   local -a a=()
   if [ -n "${DBY_PLATFORM:-}" ]; then a+=(--platform "$DBY_PLATFORM"); fi
+  if [ -n "${DBY_BASE_IMAGE:-}" ]; then a+=(--build-arg "BASE_IMAGE=$DBY_BASE_IMAGE"); fi
   if [ -n "${DBY_APT_MIRROR:-}" ]; then a+=(--build-arg "APT_MIRROR=$DBY_APT_MIRROR"); fi
   if [ -n "${DBY_UBUNTU_ARCHIVE:-}" ]; then a+=(--build-arg "UBUNTU_ARCHIVE=$DBY_UBUNTU_ARCHIVE"); fi
   echo "== building image $IMAGE (first build: apt packages + pinned toolchain)"
-  "$DOCKER" build ${a[@]+"${a[@]}"} -f "$WS/docker/Dockerfile" -t "$IMAGE" "$WS"
+  if ! "$DOCKER" build ${a[@]+"${a[@]}"} -f "$WS/docker/Dockerfile" -t "$IMAGE" "$WS"; then
+    echo >&2
+    echo "hint: if that failed with an i/o timeout talking to registry-1.docker.io," >&2
+    echo "      build from a mirror instead:" >&2
+    echo "        DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build" >&2
+    exit 1
+  fi
 }
 
 case "$BUILD" in

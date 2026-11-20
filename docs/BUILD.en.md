@@ -189,6 +189,9 @@ Details:
 - extra `docker run` arguments go through `DBY_DOCKER_ARGS`, e.g.
   `DBY_DOCKER_ARGS='--network host'`, or `--security-opt label=disable` on
   Fedora/SELinux hosts;
+- registry: the base image is pulled from Docker Hub (`ubuntu:22.04`), which is
+  not reachable from mainland China; build from a mirror instead:
+  `DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build`;
 - slow apt/deb downloads: `DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
   DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build`;
 - arm64 host (Apple silicon): `DBY_PLATFORM=linux/amd64` (qemu emulation, very
@@ -325,6 +328,7 @@ or `userdata`.
 | After Anland connects, deniald reports missing `EGL_ANDROID_native_fence_sync` | Mesa in the container selected llvmpipe (no Adreno/kgsl or virgl); this is a userspace GPU configuration issue, not the kernel |
 | `permission denied while trying to connect to the Docker daemon socket` | Your user is not in the `docker` group: `sudo usermod -aG docker $USER`, then log in again |
 | `out/` and `artifacts/` are owned by root after a container build | A plain `sudo docker run` was used; `sudo chown -R $USER:$USER out artifacts output`. `docker/run.sh` passes `--user $(id -u):$(id -g)` for you |
+| `docker build` fails with `dial tcp ... i/o timeout` on `registry-1.docker.io` | The base image cannot be pulled; use a registry mirror: `DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build` |
 | `docker build` stalls in `apt-get` or while downloading the debs | Use a mirror: `DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
 | Cloning KernelSU fails inside the container | Put a KernelSU tree in the repo and use `KSU_DIR=./KSU docker/run.sh` (or `KSU_TARBALL=./xxx.tar.gz`) |
 | The container reports `no toolchain at /opt/dby-toolchain` | The image was not built from this project's `docker/Dockerfile` (check `DBY_DOCKER_IMAGE`) |
@@ -342,8 +346,13 @@ or `userdata`.
   host build differ only in the UTS version string (build time), just like two
   host builds do.
 - `KBUILD_BUILD_TIMESTAMP` is not fixed, so rebuilding the same source does not
-  produce byte-identical images (the build time is embedded in the kernel
-  version string). Functionally they are equivalent.
+  produce byte-identical images; functionally they are equivalent. Two clean
+  builds differ in two places: the build time/hostname inside the kernel version
+  string, and `kernel/kheaders_data.tar.xz` (`CONFIG_IKHEADERS=y`), whose tar
+  headers carry the mtimes of generated headers, so the compressed blob changes
+  size and shifts the `.rodata` that follows. Incremental rebuilds in the same
+  tree differ only in the version string. Configure with `-d IKHEADERS` to
+  avoid the latter.
 - Key patch snapshots: `patches/susfs-kernel.diff`,
   `patches/susfs-kernel-fixes.diff`, `patches/ksu-susfs.diff`. The two
   permissive flavours are applied at build time by

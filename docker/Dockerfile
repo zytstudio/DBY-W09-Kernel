@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # Build environment for the DBY-W09 (Huawei MatePad 11 2021) 4.19.157 kernel.
 #
 # It contains everything `make bootstrap` + `make images` need, including the
@@ -11,10 +9,18 @@
 #   docker/run.sh make images      # normally you go through this wrapper
 #
 # Optional build args:
+#   BASE_IMAGE       tag to build from, default ubuntu:22.04. Point it at a
+#                    registry mirror from mainland China, e.g.
+#                    docker.m.daocloud.io/library/ubuntu:22.04
 #   APT_MIRROR       e.g. mirrors.tuna.tsinghua.edu.cn (rewrites sources.list)
 #   UBUNTU_ARCHIVE   mirror for the toolchain .debs, default
 #                    http://archive.ubuntu.com/ubuntu
-FROM ubuntu:22.04
+#
+# No `# syntax=docker/dockerfile:1` line on purpose: that would make the build
+# pull an extra frontend image from Docker Hub, which is not reachable from
+# everywhere and is useless here (plain Dockerfile features only).
+ARG BASE_IMAGE=ubuntu:22.04
+FROM ${BASE_IMAGE}
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG APT_MIRROR=archive.ubuntu.com

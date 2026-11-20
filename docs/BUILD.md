@@ -168,6 +168,8 @@ make docker                         # 等价于 docker/run.sh
 - 仓库挂到 `/work`，容器里看到的路径和本机一样，脚本不需要改；
 - 追加 `docker run` 参数用 `DBY_DOCKER_ARGS`，例如 `DBY_DOCKER_ARGS='--network host'`，
   Fedora/SELinux 上读不到仓库时用 `DBY_DOCKER_ARGS='--security-opt label=disable'`；
+- 镜像仓库：默认从 Docker Hub 拉 `ubuntu:22.04`，国内经常连不上。换镜像：
+  `DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build`；
 - 国内网络：`DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn
   DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build`；
 - arm64 主机（Apple silicon）：`DBY_PLATFORM=linux/amd64`，走 qemu 模拟，很慢，只建议
@@ -294,6 +296,7 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | Anland 连上后 deniald 报 `EGL_ANDROID_native_fence_sync` 缺失 | 容器里 Mesa 用了 llvmpipe（没走 Adreno/kgsl 或 virgl），是用户态 GPU 配置问题，不是内核 |
 | `permission denied while trying to connect to the Docker daemon socket` | 当前用户不在 `docker` 组：`sudo usermod -aG docker $USER`，重新登录后生效 |
 | 容器构建后 `out/`、`artifacts/` 里的文件属主是 root | 用 `sudo docker run` 直接跑过；`sudo chown -R $USER:$USER out artifacts output`。平时用 `docker/run.sh`，它自带 `--user $(id -u):$(id -g)` |
+| `docker build` 报 `dial tcp ... i/o timeout` 访问 `registry-1.docker.io` | 拉不到基础镜像；用镜像仓库：`DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build` |
 | `docker build` 卡在 `apt-get` 或下载 deb | 换国内镜像：`DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
 | 容器里 clone KernelSU 失败 | 把 KernelSU 树放进仓库，`KSU_DIR=./KSU docker/run.sh`（或 `KSU_TARBALL=./xxx.tar.gz`） |
 | 容器报 `no toolchain at /opt/dby-toolchain` | 用的不是本项目构建的镜像（`DBY_DOCKER_IMAGE` 指错了），或者镜像不是用 `docker/Dockerfile` 构建的 |
@@ -307,8 +310,11 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
   每个变体的最终 `.config` 存在 `out/images/<variant>.config`。
 - Docker 构建用的是同一份钉死的 clang/binutils，`Image` 只由它们决定（宿主 gcc 只编
   host 工具），所以容器构建与本机构建的差别仍然只有 UTS 版本串（构建时间）。
-- `KBUILD_BUILD_TIMESTAMP` 未固定，所以同一源码重复构建的镜像不会逐字节相同
-  （内核版本串里带编译时间）；功能等价。
+- `KBUILD_BUILD_TIMESTAMP` 未固定，所以同一源码重复构建的镜像不会逐字节相同；
+  功能等价。两个干净构建之间主要有两处差异：内核版本串里的编译时间/构建主机名，
+  以及 `CONFIG_IKHEADERS=y` 打进的 `kernel/kheaders_data.tar.xz`（tar 头里带
+  生成头文件的 mtime，压缩后大小会变，后面紧跟的 `.rodata` 也随之平移几 KB）。
+  同一构建树里的**增量**重编只差版本串。不想要后者可以 `-d IKHEADERS` 重配。
 - 关键补丁快照：`patches/susfs-kernel.diff`、`patches/susfs-kernel-fixes.diff`、
   `patches/ksu-susfs.diff`；permissive 的两种改法由 `scripts/patch_permissive.py`
   在构建时施加（`force` / `delay`，见 §5）。

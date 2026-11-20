@@ -31,15 +31,27 @@ mkdir -p "$OUT" "$IMG"
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
 
 pack() {  # pack MODE
-  local mode="$1"
+  local mode="$1" img ver
+  img="artifacts/boot_${V}_${mode}.img"
   python3 scripts/pack_boot.py \
     --kernel "$OUT/arch/arm64/boot/Image.gz" \
     --template "$TEMPLATE" \
-    --out "artifacts/boot_${V}_${mode}.img" | tee -a "$LOG"
-  python3 scripts/verify_boot.py "$TEMPLATE" "artifacts/boot_${V}_${mode}.img" \
-    | tee -a "$LOG" | grep -q 'RESULT: OK'
+    --out "$img" | tee -a "$LOG"
+  # Capture the report first and log it in one piece: piping it through
+  # `grep -q` would SIGPIPE tee, and when stdout is not a terminal (docker run)
+  # the "RESULT: OK" line could be lost from the visible build log.
+  ver=$(python3 scripts/verify_boot.py "$TEMPLATE" "$img" 2>&1) || {
+    printf '%s\n' "$ver" | tee -a "$LOG" >&2
+    echo "error: $img failed verification" >&2
+    exit 1
+  }
+  printf '%s\n' "$ver" | tee -a "$LOG"
+  case "$ver" in
+    *"RESULT: OK"*) ;;
+    *) echo "error: $img failed verification" >&2; exit 1 ;;
+  esac
   cp "$OUT/arch/arm64/boot/Image.gz" "$IMG/${V}-${mode}.Image.gz"
-  sha256sum "artifacts/boot_${V}_${mode}.img" > "artifacts/boot_${V}_${mode}.img.sha256"
+  sha256sum "$img" > "$img.sha256"
 }
 
 log "=== variant $V: ensure enforcing tree state ==="
