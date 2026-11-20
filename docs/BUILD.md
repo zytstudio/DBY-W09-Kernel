@@ -220,6 +220,8 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | `fetch_sources.sh` 在 clone KernelSU 时失败 | 网络受限；可 `KSU_URL=<镜像> scripts/fetch_sources.sh`，或 `KSU_TARBALL=<tar.gz>` / `KSU_DIR=<本地 KernelSU 目录>` |
 | 提示 `src/kernel looks partially patched but has no valid marker` | 源码树是半打补丁状态（旧版脚本重复打补丁会这样）；`scripts/fetch_sources.sh --force` 重新解包重打 |
 | 打补丁时出现 `*.rej` / `Hunk #N FAILED` | 源码树不干净；同样用 `--force` 重建，脚本会先 `--dry-run` 再真正打，失败时不会留下半成品 |
+| `fetch_toolchain.sh` 最后报 `libclang-cpp.so.11: cannot open shared object file` | 解包出来的 clang 把运行库放在 `toolchain/root/usr/lib/x86_64-linux-gnu`，不设 `LD_LIBRARY_PATH` 起不来；脚本现在会自己设，手动调用 clang 时先 `. scripts/env.sh` |
+| `. scripts/env.sh` 之后还是 `clang: command not found` | 老版本 `env.sh` 用 `$0` 推仓库根目录，被 source 时会算到仓库的上一级；已改用 `BASH_SOURCE`，更新仓库即可 |
 | 构建报 `lcd_kit_dpd.h` 找不到 | 没跑 `scripts/patch_source.py`（会生成 stub） |
 | 链接报 RTIC 重定位溢出 | 没跑 `scripts/patch_source.py` 的 `.bss.rtic` 合并，或没关 `RELOCATABLE` |
 | 容器里 Anland 桌面一连上就重启 | 华为 msm 驱动 `msm_gem_fault` 对导入 dma-buf 的空指针；确认跑过 `scripts/patch_msm_fault.py` |

@@ -14,6 +14,13 @@ ARCHIVE=${UBUNTU_ARCHIVE:-http://archive.ubuntu.com/ubuntu}
 DEBS=$WS/toolchain/debs
 ROOT=$WS/toolchain/root
 
+for c in curl dpkg-deb sha256sum; do
+  command -v "$c" >/dev/null 2>&1 || {
+    echo "error: required command '$c' not found in PATH" >&2
+    exit 1
+  }
+done
+
 mkdir -p "$DEBS" "$ROOT"
 
 # url path, file name, sha256
@@ -32,11 +39,47 @@ for entry in "${PKGS[@]}"; do
     curl -fL --retry 3 -o "$DEBS/$name.part" "$ARCHIVE/$path"
     mv "$DEBS/$name.part" "$DEBS/$name"
   fi
-  echo "$sha  $DEBS/$name" | sha256sum -c -
+  if ! echo "$sha  $DEBS/$name" | sha256sum -c -; then
+    echo "error: $name failed its sha256 check; delete it and re-run:" >&2
+    echo "       rm $DEBS/$name" >&2
+    exit 1
+  fi
   dpkg-deb -x "$DEBS/$name" "$ROOT"
 done
 
 echo
 echo "toolchain ready in $ROOT"
-"$ROOT/usr/lib/llvm-11/bin/clang" --version | head -1
-"$ROOT/usr/bin/aarch64-linux-gnu-ld" --version | head -1
+
+# The packages keep the clang runtime libraries in usr/lib/x86_64-linux-gnu
+# (not next to the binary), so the unpacked clang only starts with
+# LD_LIBRARY_PATH pointing there. env.sh exports the same two directories for
+# the build itself; do it here too so the sanity check below works on a clean
+# host that has no system-wide llvm-11.
+export LD_LIBRARY_PATH="$ROOT/usr/lib/x86_64-linux-gnu:$ROOT/usr/lib/llvm-11/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+CLANG=$ROOT/usr/lib/llvm-11/bin/clang
+CROSS_LD=$ROOT/usr/bin/aarch64-linux-gnu-ld
+
+clang_ver=$("$CLANG" --version 2>&1 | head -1)
+case "$clang_ver" in
+  *"clang version 11.1.0-6"*) echo "  clang: $clang_ver" ;;
+  *)
+    echo "error: unpacked clang does not run or has the wrong version:" >&2
+    echo "       $clang_ver" >&2
+    echo "       try: rm -rf $ROOT && scripts/fetch_toolchain.sh" >&2
+    exit 1
+    ;;
+esac
+
+ld_ver=$("$CROSS_LD" --version 2>&1 | head -1)
+case "$ld_ver" in
+  *"2.38"*) echo "  ld:    $ld_ver" ;;
+  *)
+    echo "error: unexpected aarch64-linux-gnu-ld: $ld_ver" >&2
+    echo "       try: rm -rf $ROOT && scripts/fetch_toolchain.sh" >&2
+    exit 1
+    ;;
+esac
+
+echo
+echo "next: . scripts/env.sh    # PATH / LD_LIBRARY_PATH / ARCH / CROSS_COMPILE"

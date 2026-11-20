@@ -241,6 +241,8 @@ or `userdata`.
 | `fetch_sources.sh` fails while cloning KernelSU | Network restriction; use `KSU_URL=<mirror>`, or `KSU_TARBALL=<tar.gz>` / `KSU_DIR=<local KernelSU tree>` |
 | `src/kernel looks partially patched but has no valid marker` | The tree is half patched (happens when an older version of the script patched it twice); recover with `scripts/fetch_sources.sh --force` |
 | Patching prints `*.rej` / `Hunk #N FAILED` | The tree is not pristine; rebuild with `--force`. The script dry-runs each patch first, so a failure no longer leaves a half-patched tree |
+| `fetch_toolchain.sh` ends with `libclang-cpp.so.11: cannot open shared object file` | The unpacked clang keeps its runtime libraries in `toolchain/root/usr/lib/x86_64-linux-gnu`, so it needs `LD_LIBRARY_PATH`; the script now sets it, and you need `. scripts/env.sh` when calling clang by hand |
+| `. scripts/env.sh` still leaves `clang: command not found` | Older `env.sh` derived the repo root from `$0`, which is the calling shell when sourced; it now uses `BASH_SOURCE`. Update the checkout |
 | Build fails on `lcd_kit_dpd.h` | `scripts/patch_source.py` was not run (it generates the stub) |
 | Link fails with an RTIC relocation overflow | The `.bss.rtic` fold from `scripts/patch_source.py` is missing, or `RELOCATABLE` was not disabled |
 | The device reboots as soon as the Anland desktop connects | NULL dereference in Huawei's `msm_gem_fault` on imported dma-bufs; make sure `scripts/patch_msm_fault.py` was applied |
