@@ -6,6 +6,7 @@ toolchain/
 artifacts/*.img
 artifacts/*.gz
 artifacts/*.img.sha256
+artifacts.bak/
 ssh.txt
 output/*.img
 KSU/
