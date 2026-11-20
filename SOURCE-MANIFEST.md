@@ -51,8 +51,7 @@ Additional local fixups carried by the patches:
 | Patch | Why |
 |---|---|
 | `patches/susfs-kernel-fixes.diff` | `fs/namespace.c`/`susfs.h` declarations missing from the vendor 4.19 patch (SUS_MOUNT build) |
-| `patches/selinux-permissive-force.diff` | permissive-from-boot (variants 1–3) |
-| `patches/selinux-permissive-delay.diff` | 20 s delayed permissive flip (variants 4–5, container config needs enforcing during early boot) |
+| `scripts/patch_permissive.py` | permissive-from-boot (`force`, variants 1–3) or a 20 s delayed flip (`delay`, variants 4–5); applied at build time, no patch file |
 
 ## Toolchain
 
@@ -84,8 +83,7 @@ by `scripts/pack_boot.py`. Not in git; dump it once with
 ## Released boot images (not in git)
 
 Ten images, 96 MiB each, are published as GitHub Releases (or the `output/`
-folder locally). Their hashes are in `output/SHA256SUMS` and are reproduced in
-`docs/M5-image-matrix.md`.
+folder locally). Their hashes are in `output/SHA256SUMS`.
 
 | Variant | enforcing | permissive |
 |---|---|---|

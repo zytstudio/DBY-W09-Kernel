@@ -24,8 +24,7 @@ ramdisk / DTB / cmdline / os_version 与设备原厂镜像一致（`make check` 
   （与 DroidSpaces 的 bind mount 冲突）。两者都不含 `TRY_UMOUNT`
   （KernelSU fork 未导出对应内部函数）。
 - 内核额外修了华为 msm 显示驱动的 `msm_gem_fault` 空指针：容器里 Anland/llvmpipe
-  mmap 导入的 dma-buf 不再导致设备重启（`scripts/patch_msm_fault.py`，
-  见 `../docs/M6-anland-crash.md`）。
+  mmap 导入的 dma-buf 不再导致设备重启（`scripts/patch_msm_fault.py`）。
 - 「第 20 秒」是内核自己翻转，与用户态无关；`dmesg | grep DBY_FORCE_PERMISSIVE`
   能看到 `flip -> permissive`。早期 permissive 与容器选项组合会触发
   HarmonyOS bootfail 循环，所以容器变体必须延迟。
@@ -59,9 +58,11 @@ adb shell 'su -c id'                      # 期望 uid=0(root) u:r:ksu:s0
 
 ## 回滚
 
-- 原厂：`../artifacts/boot_stock_device.img`
-- 已验证的 M4（KSU v3.3.1 + 容器 + SUSFS，enforcing）：`../artifacts/boot_m4.img`
-- 都可用 `fastboot flash boot <img>` 刷回。
+刷回你刷机前备份的 boot 镜像（原厂或任一已知可用版本）：
+
+```sh
+fastboot flash boot <backup>.img
+```
 
 ## 构建
 

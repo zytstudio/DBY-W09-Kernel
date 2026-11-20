@@ -54,7 +54,7 @@ python3 scripts/apply_ksu_susfs.py src/kernel/KernelSU
 python3 scripts/patch_msm_fault.py src/kernel
 ```
 
-`scripts/patch_msm_fault.py`（见 [`M6-anland-crash.md`](M6-anland-crash.md)）：
+`scripts/patch_msm_fault.py`：
 华为 `techpack/display/msm/msm_gem.c` 对导入的 dma-buf 不建页数组，
 `msm_gem_fault()` 直接解引用 NULL → 容器里 Mesa/llvmpipe mmap Anland 的
 dma-buf 时 oops → 重启。补丁在 fault 时用 sg 表补页数组，并在拿不到页时返回
@@ -128,7 +128,7 @@ cmdline 的 `enforcing=0`、`androidboot.selinux=permissive` 在这台机器上�
 
 为什么容器变体不能 0 秒：早期 permissive 与那批容器选项组合会让 init 卡住，
 华为 bootfail 在约 2 分钟后把设备送进 fastboot；20 秒（init 第一阶段结束后）
-就完全正常。详细证据见 `docs/M5-image-matrix.md`。
+就完全正常。这就是变体 4/5 默认 20 秒的原因。
 
 改延迟/机制（编译期，改 cmdline 无效）：
 
@@ -183,8 +183,8 @@ fastboot reboot
 scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 ```
 
-回滚镜像：`artifacts/boot_m4.img`（M4：KSU v3.3.1 + 容器 + SUSFS，enforcing）
-或 `artifacts/boot_stock_device.img`（原厂）。本工程从不写
+回滚：刷回你自己备份的 boot 镜像（原厂或任一已知可用版本）。模板文件
+`artifacts/boot_stock_device.img` 就是原厂 boot，也可以直接刷回。本工程从不写
 `ramdisk`/`dtbo`/`vbmeta`/`userdata`。
 
 ---
@@ -193,14 +193,14 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 
 | 现象 | 原因 / 处理 |
 |---|---|
-| 刷完循环重启、最后进 fastboot | 镜像内核在这台机器上没走通早期引导（如 0 秒 permissive + 容器选项）。用 `fastboot flash boot artifacts/boot_m4.img` 回滚，再按 §5 换机制 |
+| 刷完循环重启、最后进 fastboot | 镜像内核在这台机器上没走通早期引导（如 0 秒 permissive + 容器选项）。刷回你备份的 boot 镜像，再按 §5 换机制 |
 | `getenforce` 一直是 Enforcing | 变体 4/5 是第 20 秒才翻转；确认 `dmesg \| grep DBY_FORCE_PERMISSIVE` 有没有 `flip -> permissive` |
 | 改了 `dby_perm_delay=NN` 没生效 | 该 module param 在这台机上 cmdline 不生效（已知问题），请用 `PERM_DELAY=NN` 重编 |
 | `SUS_MOUNT` 与 DroidSpaces 冲突 | 用变体 5（容器 + SUSFS，`SUS_MOUNT` 关闭）而不是变体 3 |
 | `ksu_susfs` 报 Requires susfs v1.5.3+ | 用户态要用 `prctl(0xDEADBEEF, ...)` 的版本；本内核是 SUSFS 1.5.5 + 该 prctl 分发器 |
 | 构建报 `lcd_kit_dpd.h` 找不到 | 没跑 `scripts/patch_source.py`（会生成 stub） |
 | 链接报 RTIC 重定位溢出 | 没跑 `scripts/patch_source.py` 的 `.bss.rtic` 合并，或没关 `RELOCATABLE` |
-| 容器里 Anland 桌面一连上就重启 | 华为 msm 驱动 `msm_gem_fault` 空指针（见 `M6-anland-crash.md`），确认跑过 `scripts/patch_msm_fault.py` |
+| 容器里 Anland 桌面一连上就重启 | 华为 msm 驱动 `msm_gem_fault` 对导入 dma-buf 的空指针；确认跑过 `scripts/patch_msm_fault.py` |
 | Anland 连上后 deniald 报 `EGL_ANDROID_native_fence_sync` 缺失 | 容器里 Mesa 用了 llvmpipe（没走 Adreno/kgsl 或 virgl），是用户态 GPU 配置问题，不是内核 |
 
 ---
@@ -212,5 +212,5 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 - `KBUILD_BUILD_TIMESTAMP` 未固定，所以同一源码重复构建的镜像不会逐字节相同
   （内核版本串里带编译时间）；功能等价。
 - 关键补丁快照：`patches/susfs-kernel.diff`、`patches/susfs-kernel-fixes.diff`、
-  `patches/ksu-susfs.diff`、`patches/selinux-permissive-force.diff`、
-  `patches/selinux-permissive-delay.diff`。
+  `patches/ksu-susfs.diff`；permissive 的两种改法由 `scripts/patch_permissive.py`
+  在构建时施加（`force` / `delay`，见 §5）。

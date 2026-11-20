@@ -71,8 +71,7 @@ make list          # 打印变体矩阵
 permissive 为什么分两种：这台 HarmonyOS user build 的早期引导要求 SELinux
 enforcing（`enforcing=0`/`androidboot.selinux=permissive` 都无效），0 秒 permissive
 会让带容器选项的配置进 bootfail 循环；无容器配置可以开机即 permissive。
-延迟用 `dby_perm_delay`（编译期，`PERM_DELAY=NN`）调整。细节见
-[`docs/M5-image-matrix.md`](docs/M5-image-matrix.md)。
+延迟用 `dby_perm_delay`（编译期，`PERM_DELAY=NN`）调整，详见 `docs/BUILD.md` §5。
 
 ## 刷入
 
@@ -89,11 +88,7 @@ scripts/test_image.sh output/boot_ksu_permissive.img   # 自动刷入并采样 g
 
 ## 文档
 
-- [`docs/BUILD.md`](docs/BUILD.md) — 从解包到刷机的完整步骤、配置说明、排错
-- [`docs/M5-image-matrix.md`](docs/M5-image-matrix.md) — 10 个镜像的矩阵、permissive 机制与真机验收
-- [`docs/M6-anland-crash.md`](docs/M6-anland-crash.md) — 容器里 Anland 桌面导致设备重启的
-  内核根因（`msm_gem_fault` 空指针）与修复
-- `docs/M2-*.md`、`docs/M3-*.md`、`docs/M4-*.md` — Docker/DroidSpaces、SUSFS、KSU 升级记录
+- [`docs/BUILD.md`](docs/BUILD.md) — 从解包、打补丁、配置、编译、打包到刷入和排错的完整步骤
 
 ## 许可
 
