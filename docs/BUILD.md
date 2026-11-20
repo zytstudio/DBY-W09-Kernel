@@ -1,5 +1,7 @@
 # 构建 boot 镜像的方法
 
+**简体中文** | [English](BUILD.en.md)
+
 面向 Huawei MatePad 11（DBY-W09，kona/SM8250，HarmonyOS 4.3 内核 4.19.157-perf）。
 全部步骤都已脚本化，最终产物是 5 种功能组合 × enforcing/permissive = 10 个
 `boot_<variant>_<mode>.img`。

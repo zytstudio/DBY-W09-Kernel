@@ -1,4 +1,6 @@
-# DBY-W09 内核构建（MatePad 11 2021 / HarmonyOS 4.3）
+# DBY-W09 内核构建（MatePad 11 2021 / HarmonyOS 4）
+
+**简体中文** | [English](README.en.md)
 
 华为 MatePad 11（2021，DBY-W09，骁龙 865 / kona）的 Linux 4.19.157 内核构建工程，
 基于华为官方开源包，产出 **10 个 boot 镜像**：
@@ -15,11 +17,11 @@ cgroup/netfilter/macvlan 选项全开。
 
 | 目录 | 内容 |
 |---|---|
-| `scripts/` | 取源码/工具链、打补丁、配置、编译、打包、校验、刷机、设备自检 |
+| `scripts/` | 取源码/工具链、打补丁、配置、编译、打包、校验、刷机 |
 | `patches/` | SUSFS 内核补丁、KernelSU 侧补丁、permissive 补丁（可复现的快照） |
 | `configs/running.config` | 设备原厂 `/proc/config.gz`，所有变体的配置基线 |
 | `Makefile` | `make images` 等入口 |
-| `docs/` | 构建指南（`BUILD.md`）、镜像矩阵（`M5`）、Anland 崩溃分析（`M6`）等 |
+| `docs/` | 构建指南（`BUILD.md`，另有英文版 `BUILD.en.md`） |
 | `output/` | 镜像的 sha256 清单 + 刷机速查（镜像本体走 Releases） |
 | `SOURCE-MANIFEST.md` | 所有组件的版本、commit、sha256 |
 
@@ -89,6 +91,7 @@ scripts/test_image.sh output/boot_ksu_permissive.img   # 自动刷入并采样 g
 ## 文档
 
 - [`docs/BUILD.md`](docs/BUILD.md) — 从解包、打补丁、配置、编译、打包到刷入和排错的完整步骤
+- [`docs/BUILD.en.md`](docs/BUILD.en.md) — the same guide in English
 
 ## 许可
 

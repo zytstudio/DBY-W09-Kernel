@@ -1,5 +1,7 @@
 # DBY-W09 (MatePad 11 2021) 自编内核 boot 镜像
 
+**简体中文** | [English](README.en.md)
+
 10 个镜像 = 5 种功能组合 × 2 种 SELinux 模式。全部只替换内核，
 ramdisk / DTB / cmdline / os_version 与设备原厂镜像一致（`make check` 校验）。
 

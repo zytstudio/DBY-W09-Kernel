@@ -88,10 +88,10 @@ folder locally). Their hashes are in `output/SHA256SUMS`.
 | Variant | enforcing | permissive |
 |---|---|---|
 | `noroot` | sha256 in `output/SHA256SUMS` | 同上 |
-| `ksu` | 同上 | 同上 |
-| `ksu-susfs` | 同上 | 同上 |
-| `ksu-droidspaces` | 同上 | 同上 |
-| `ksu-droidspaces-susfs` | 同上 | 同上 |
+| `ksu` | same as above | same as above |
+| `ksu-susfs` | same as above | same as above |
+| `ksu-droidspaces` | same as above | same as above |
+| `ksu-droidspaces-susfs` | same as above | same as above |
 
 ## Device under test
 
