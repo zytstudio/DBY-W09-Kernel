@@ -37,9 +37,19 @@ scripts/fetch_toolchain.sh
 #      SUSFS 内核补丁 → KernelSU 侧补丁 → msm_gem_fault 修复）
 DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
 
-# 2.3 boot 模板：从设备 dump 96 MiB 原厂 boot 分区（或用已知备份）
+# 2.3 boot 模板：从设备 dump 96 MiB 原厂 boot 分区
 scripts/dump_boot_template.sh
+
+#     或者用你手动备份出来的 boot.img（会先校验再装成模板）
+scripts/dump_boot_template.sh /path/to/boot_stock_device.img
+scripts/dump_boot_template.sh --from /path/to/boot_stock_device.img   # 同上
 ```
+
+`dump_boot_template.sh` 装出来的模板就是 `artifacts/boot_stock_device.img`，打包时只替换
+内核，ramdisk / DTB / cmdline / AVB footer 都取自它。手动备份的文件（`dd`、fastboot、
+TWRP、整分区备份都行）在安装前会检查：`ANDROID!` 头、header v2、4096 字节页、gzip 内核、
+非空 ramdisk/DTB、末尾 AVB footer 且 footer 记录的长度与分段一致；缺一样就报错退出，
+不会写出一张刷不进去的镜像。文件大小不是 96 MiB 时只警告（镜像会跟着变成同样大小）。
 
 `fetch_sources.sh` 是幂等的：打完补丁会在 `src/kernel/.dby_prepared` 留标记，并用
 内容检查确认源码确实"只打了一遍"（`fs/susfs.c`/`fs/susfs_prctl.c`/`include/linux/susfs.h`

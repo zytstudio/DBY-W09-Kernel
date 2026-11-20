@@ -44,8 +44,11 @@ scripts/fetch_toolchain.sh
 DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
 
 # 3) boot template: dump the 96 MiB stock boot partition from a device that still
-#    has it (or drop in a known-good backup)
+#    has it
 scripts/dump_boot_template.sh
+
+#    already have your own boot.img backup? install it as the template (validated)
+scripts/dump_boot_template.sh /path/to/boot_stock_device.img
 
 # 4) build all 10 images (16 threads, about 40 minutes)
 make images

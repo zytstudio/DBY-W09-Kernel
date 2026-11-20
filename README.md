@@ -40,8 +40,11 @@ scripts/fetch_toolchain.sh
 #    放到仓库根目录（或 DBY_TARBALL=/path/to/tar.gz），然后：
 DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
 
-# 3) boot 模板：从一台仍是原厂 boot 分区（或已知可用备份）的设备 dump 96 MiB
+# 3) boot 模板：从一台仍是原厂 boot 分区的设备 dump 96 MiB
 scripts/dump_boot_template.sh
+
+#    已经有手动备份的 boot.img 时，直接装进模板（脚本会先校验）
+scripts/dump_boot_template.sh /path/to/boot_stock_device.img
 
 # 4) 构建全部 10 个镜像（16 线程，约 40 分钟）
 make images

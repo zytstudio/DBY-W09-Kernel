@@ -40,7 +40,20 @@ DBY_TARBALL=./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz scripts/fetch_sources.sh
 
 # 2.3 boot template: dump the 96 MiB stock boot partition from the device
 scripts/dump_boot_template.sh
+
+#     or install a boot.img you backed up yourself (it is validated first)
+scripts/dump_boot_template.sh /path/to/boot_stock_device.img
+scripts/dump_boot_template.sh --from /path/to/boot_stock_device.img   # same
 ```
+
+`dump_boot_template.sh` writes the template to `artifacts/boot_stock_device.img`.
+When packing, only the kernel is replaced; ramdisk, DTB, cmdline and the AVB
+footer come from that file. A self-made backup (`dd`, fastboot, TWRP or any full
+partition dump) is checked before it is installed: `ANDROID!` magic, header v2,
+4096-byte pages, gzip kernel, non-empty ramdisk/DTB, and an AVB footer whose
+recorded size matches the payload. Anything missing aborts without writing a
+template that would produce an unbootable image. A size other than 96 MiB only
+warns (the built images then have that same size).
 
 `fetch_sources.sh` is idempotent: once patched it drops a marker at
 `src/kernel/.dby_prepared` and then verifies by content that the tree really was
