@@ -13,3 +13,4 @@ KSU/
 *.rej
 *.orig
 .cache/
+artifacts/IMAGES.sha256

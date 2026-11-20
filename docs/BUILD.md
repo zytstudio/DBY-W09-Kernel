@@ -144,7 +144,7 @@ PERM_MODE=delay PERM_DELAY=60 make ksu    # 非容器变体也改成延迟
 
 ```
 artifacts/boot_<variant>_<mode>.img      # 构建产物（96 MiB，header v2）
-artifacts/IMAGES.sha256                  # 10 个镜像的 sha256
+artifacts/IMAGES.sha256                  # 10 个镜像的 sha256（生成物，不入库）
 output/                                  # 整理好的交付目录
 output/boot_<variant>_<mode>.img         # 10 个镜像的副本
 output/SHA256SUMS                        # 交付目录自己的校验清单
@@ -153,7 +153,7 @@ output/README.md                         # 刷机速查
 
 ```sh
 make check       # 逐个对比模板：只有 kernel 不同，ramdisk/DTB/cmdline/os_version 不变
-make manifest    # 重新生成 artifacts/IMAGES.sha256
+make manifest    # 重新生成 artifacts/IMAGES.sha256（生成物，不入库）
 make dist        # 把 artifacts 里的 10 个镜像整理到 output/ 并生成 SHA256SUMS
 make list        # 打印变体矩阵
 ```
