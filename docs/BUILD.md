@@ -200,7 +200,7 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | 改了 `dby_perm_delay=NN` 没生效 | 该 module param 在这台机上 cmdline 不生效（已知问题），请用 `PERM_DELAY=NN` 重编 |
 | `SUS_MOUNT` 与 DroidSpaces 冲突 | 用变体 5（容器 + SUSFS，`SUS_MOUNT` 关闭）而不是变体 3 |
 | `ksu_susfs` 报 Requires susfs v1.5.3+ | 用户态要用 `prctl(0xDEADBEEF, ...)` 的版本；本内核是 SUSFS 1.5.5 + 该 prctl 分发器 |
-| `fetch_sources.sh` 在 clone KernelSU 时失败 | 网络受限；可 `KSU_URL=<镜像> scripts/fetch_sources.sh`，或下载仓库归档后 `KSU_TARBALL=<tar.gz> scripts/fetch_sources.sh` |
+| `fetch_sources.sh` 在 clone KernelSU 时失败 | 网络受限；可 `KSU_URL=<镜像> scripts/fetch_sources.sh`，或 `KSU_TARBALL=<tar.gz>` / `KSU_DIR=<本地 KernelSU 目录>` |
 | 构建报 `lcd_kit_dpd.h` 找不到 | 没跑 `scripts/patch_source.py`（会生成 stub） |
 | 链接报 RTIC 重定位溢出 | 没跑 `scripts/patch_source.py` 的 `.bss.rtic` 合并，或没关 `RELOCATABLE` |
 | 容器里 Anland 桌面一连上就重启 | 华为 msm 驱动 `msm_gem_fault` 对导入 dma-buf 的空指针；确认跑过 `scripts/patch_msm_fault.py` |

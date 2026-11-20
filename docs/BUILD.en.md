@@ -217,7 +217,7 @@ or `userdata`.
 | `dby_perm_delay=NN` on the cmdline has no effect | That module parameter does not work from the cmdline on this device (known issue); rebuild with `PERM_DELAY=NN` |
 | `SUS_MOUNT` conflicts with DroidSpaces | Use variant 5 (containers + SUSFS, `SUS_MOUNT` disabled) instead of variant 3 |
 | `ksu_susfs` says "Requires susfs v1.5.3+" | The userspace tool must use `prctl(0xDEADBEEF, ...)`; this kernel is SUSFS 1.5.5 with that prctl dispatcher |
-| `fetch_sources.sh` fails while cloning KernelSU | Network restriction; use `KSU_URL=<mirror> scripts/fetch_sources.sh`, or download the repo archive and use `KSU_TARBALL=<tar.gz> scripts/fetch_sources.sh` |
+| `fetch_sources.sh` fails while cloning KernelSU | Network restriction; use `KSU_URL=<mirror>`, or `KSU_TARBALL=<tar.gz>` / `KSU_DIR=<local KernelSU tree>` |
 | Build fails on `lcd_kit_dpd.h` | `scripts/patch_source.py` was not run (it generates the stub) |
 | Link fails with an RTIC relocation overflow | The `.bss.rtic` fold from `scripts/patch_source.py` is missing, or `RELOCATABLE` was not disabled |
 | The device reboots as soon as the Anland desktop connects | NULL dereference in Huawei's `msm_gem_fault` on imported dma-bufs; make sure `scripts/patch_msm_fault.py` was applied |

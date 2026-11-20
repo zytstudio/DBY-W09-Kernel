@@ -18,12 +18,13 @@
 #   DBY_SKIP_SHA  set to 1 to skip the tarball sha256 check
 #   KSU_URL       KernelSU git remote (default backslashxx/KernelSU)
 #   KSU_COMMIT    pinned KernelSU commit
+#   KSU_DIR       local KernelSU tree to copy instead of cloning
 #   KSU_TARBALL   offline KernelSU archive (repo tarball/zip) to use instead of
-#                 cloning; extracted into src/kernel/KernelSU with one top dir
-#                 stripped
+#                 cloning; a single top-level directory is stripped if present
 #
 # The tarball itself is not part of this repository (554 MB); download it from
 # Huawei's open-source release page and check the sha256 in SOURCE-MANIFEST.md.
+if [ -z "${BASH_VERSION:-}" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail
 WS=$(cd "$(dirname "$0")/.." && pwd)
 cd "$WS"
@@ -72,14 +73,30 @@ fi
 
 say "2/7 KernelSU (pinned $KSU_COMMIT)"
 KSU=$WS/src/kernel/KernelSU
-if [ -n "${KSU_TARBALL:-}" ]; then
+if [ -n "${KSU_DIR:-}" ]; then
+  echo "   copying KernelSU from $KSU_DIR"
+  [ -d "$KSU_DIR/kernel" ] || { echo "error: $KSU_DIR is not a KernelSU tree" >&2; exit 1; }
+  rm -rf "$KSU"
+  mkdir -p "$KSU"
+  cp -a "$KSU_DIR"/. "$KSU"/
+elif [ -n "${KSU_TARBALL:-}" ]; then
   echo "   using offline archive $KSU_TARBALL"
   rm -rf "$KSU"
   mkdir -p "$KSU"
-  tar xf "$KSU_TARBALL" -C "$KSU" --strip-components=1 || {
+  tmpk=$(mktemp -d)
+  tar xf "$KSU_TARBALL" -C "$tmpk" || {
     echo "error: cannot extract $KSU_TARBALL" >&2
+    rm -rf "$tmpk"
     exit 1
   }
+  # GitHub archives have one top-level directory, `git archive` does not.
+  entries=$(ls -A "$tmpk" | wc -l)
+  src=$tmpk
+  if [ "$entries" -eq 1 ] && [ -d "$tmpk/$(ls -A "$tmpk")" ]; then
+    src=$tmpk/$(ls -A "$tmpk")
+  fi
+  cp -a "$src"/. "$KSU"/
+  rm -rf "$tmpk"
 elif [ ! -d "$KSU/.git" ]; then
   rm -rf "$KSU"
   echo "   cloning $KSU_URL"
@@ -100,7 +117,11 @@ if [ -d "$KSU/.git" ]; then
     exit 1
   }
 fi
-git -C "$KSU" log --oneline -1 2>/dev/null || echo "   (offline archive, no git metadata)"
+if [ -d "$KSU/.git" ]; then
+  git -C "$KSU" log --oneline -1
+else
+  echo "   (offline archive, no git metadata)"
+fi
 
 say "3/7 wire KernelSU into the kernel build"
 "$WS/scripts/wire_kernelsu.sh" "$WS/src/kernel"
