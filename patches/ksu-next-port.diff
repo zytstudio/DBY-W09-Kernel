@@ -139,10 +139,10 @@ index 946966dc..54adce88 100644
 +
 +endmenu
 diff --git a/kernel/compat/kernel_compat.h b/kernel/compat/kernel_compat.h
-index f3506c27..bb5a5147 100644
+index 090aab85..c632af3d 100644
 --- a/kernel/compat/kernel_compat.h
 +++ b/kernel/compat/kernel_compat.h
-@@ -97,7 +97,13 @@ static inline void ksu_kvfree(const void *buf)
+@@ -88,7 +88,13 @@ static inline void ksu_kvfree(const void *buf)
  // https://elixir.bootlin.com/linux/v4.14.222/source/lib/string.c#L282
  static inline ssize_t __strscpy_pad(char *dest, const char *src, size_t count)
  {
@@ -158,10 +158,10 @@ index f3506c27..bb5a5147 100644
  #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
      ssize_t res = strscpy(dest, src, count);
 diff --git a/kernel/core/init.c b/kernel/core/init.c
-index e6562de1..bde145c2 100644
+index 9be09872..76176760 100644
 --- a/kernel/core/init.c
 +++ b/kernel/core/init.c
-@@ -25,6 +25,10 @@
+@@ -24,6 +24,10 @@
  #include "feature/shell_su_adb_only.h"
  #include "feature/adb_root.h"
  
@@ -172,7 +172,7 @@ index e6562de1..bde145c2 100644
  extern void __init ksu_lsm_hook_init(void);
  extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
  					void *argv, void *envp, int *flags);
-@@ -103,6 +107,9 @@ module_param_named(bundled, ksu_bundled, bool, 0);
+@@ -102,6 +106,9 @@ module_param_named(bundled, ksu_bundled, bool, 0);
  
  int __init kernelsu_init(void)
  {
@@ -182,6 +182,22 @@ index e6562de1..bde145c2 100644
  #ifdef KSU_MANAGER_PACKAGE
  	pr_info("welcome to KernelSU version " __stringify(KERNEL_SU_VERSION) ", package name " KSU_MANAGER_PACKAGE "\n");
  #else
+diff --git a/kernel/runtime/ksud_integration.c b/kernel/runtime/ksud_integration.c
+index f3295f47..b1abaffe 100644
+--- a/kernel/runtime/ksud_integration.c
++++ b/kernel/runtime/ksud_integration.c
+@@ -64,6 +64,11 @@ static const char KERNEL_SU_RC[] =
+ 	"\n"
+ 
+ 	"on property:sys.boot_completed=1\n"
++	// This Huawei tree never sets `nonencrypted` / `vold.decrypt`, so the
++	// triggers above do not fire and no module service script would ever run.
++	// Run the service stage when boot completes as well; ksud de-duplicates
++	// repeated service triggers.
++	"    exec u:r:" KERNEL_SU_DOMAIN ":s0 root -- " KSUD_PATH " services\n"
+ 	"    exec u:r:" KERNEL_SU_DOMAIN ":s0 root -- " KSUD_PATH " boot-completed\n"
+ 	"\n"
+ 
 diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
 index 258ca819..14d1819b 100644
 --- a/kernel/selinux/selinux.c

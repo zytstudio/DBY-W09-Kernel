@@ -27,9 +27,16 @@ scripts/fetch_sources.sh          # or: DBY_TARBALL=/path/to/tarball scripts/fet
 |---|---|
 | Repository | https://github.com/KernelSU-Next/KernelSU-Next |
 | Branch | `legacy` (non-GKI: manual / kprobes / syscall-table hook modes) |
-| Commit | `e5f5ec998de88b9fc43c62cff8f7ae12d3f4800a` |
-| Tag | `v3.4.0-legacy` (the kernel reports version `33327`) |
-| Manager app | `KernelSU_Next_v3.4.1_33333-release.apk`, package `com.rifsxd.ksunext` |
+| Commit | `465490a26667ba4cf00b3be975a7e28e53978829` |
+| Tag | `v3.4.0-legacy` + 2026-10-15 fixes (the kernel reports version `33314`) |
+| Manager app | `KernelSU_Next_v3.4.2_33355-release.apk`, package `com.rifsxd.ksunext` |
+
+The commit is pinned just **before** `0b17f242` ("Add module preinit"), which
+bumped `KERNEL_SU_UAPI_VERSION` from 5 to 6.  The published manager builds
+(v3.4.1/v3.4.2) still speak UAPI 5, and ksud refuses every stage on a version
+mismatch ("skip on_post_fs_data"), so the branch head currently cannot start
+modules with any released manager.  Pin the UAPI-5 kernel until a manager with
+UAPI 6 is released.
 | Port patch | `patches/ksu-next-port.diff` (SUSFS glue, Kconfig, one 4.19 compat fix) |
 | License | GPL-2.0 |
 

@@ -85,7 +85,7 @@ useful when comparing or debugging:
 tar xzf DBY-W09_HarmonyOS4.0.0_opensource.tar.gz -C src Code_Opensource/kernel
 mv src/Code_Opensource/kernel src/kernel
 git clone -b legacy https://github.com/KernelSU-Next/KernelSU-Next src/kernel/KernelSU-Next
-git -C src/kernel/KernelSU-Next checkout e5f5ec998de88b9fc43c62cff8f7ae12d3f4800a
+git -C src/kernel/KernelSU-Next checkout 465490a26667ba4cf00b3be975a7e28e53978829
 scripts/wire_kernelsu.sh
 python3 scripts/patch_source.py src/kernel
 patch -p1 -d src/kernel < patches/susfs-kernel.diff
@@ -331,7 +331,7 @@ or `userdata`.
 | `docker build` fails with `dial tcp ... i/o timeout` on `registry-1.docker.io` | The base image cannot be pulled; use a registry mirror: `DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build` |
 | `docker build` stalls in `apt-get` or while downloading the debs | Use a mirror: `DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
 | Cloning KernelSU fails inside the container | Put a KernelSU tree in the repo and use `KSU_DIR=./KSU docker/run.sh` (or `KSU_TARBALL=./xxx.tar.gz`) |
-| After flashing a KSUN kernel the old manager says the kernel is unsupported | The xxKSU manager (`me.weishu.kernelsu`) does not see the new kernel; install `KernelSU_Next_v3.4.1_33333-release.apk` (`com.rifsxd.ksunext`). The package names differ, so both can be installed side by side |
+| After flashing a KSUN kernel the old manager says the kernel is unsupported | The xxKSU manager (`me.weishu.kernelsu`) does not see the new kernel; install `KernelSU_Next_v3.4.2_33355-release.apk` (`com.rifsxd.ksunext`). The package names differ, so both can be installed side by side |
 | The container reports `no toolchain at /opt/dby-toolchain` | The image was not built from this project's `docker/Dockerfile` (check `DBY_DOCKER_IMAGE`) |
 | On Fedora/SELinux the container cannot read `/work` | `DBY_DOCKER_ARGS='--security-opt label=disable' docker/run.sh ...` |
 

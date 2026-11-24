@@ -10,8 +10,8 @@
 - 每种组合再分 **enforcing** 和 **permissive** 两种 SELinux 模式。
 
 KernelSU 用 [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next) 的
-`legacy` 分支（非 GKI，钉在 `e5f5ec9`，v3.4.0-legacy，manager 用
-`KernelSU_Next_v3.4.1_33333-release.apk`），SUSFS 1.5.5，Docker/DroidSpaces 需要的
+`legacy` 分支（非 GKI，钉在 `465490a2`，v3.4.0-legacy + UAPI 5 修复，manager 用
+`KernelSU_Next_v3.4.2_33355-release.apk`），SUSFS 1.5.5，Docker/DroidSpaces 需要的
 cgroup/netfilter/macvlan 选项全开。
 
 ## 仓库里有什么

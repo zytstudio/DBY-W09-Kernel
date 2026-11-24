@@ -12,8 +12,8 @@ release. It produces **10 boot images**:
 
 KernelSU is the `legacy` (non-GKI) branch of
 [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next), pinned at
-`e5f5ec9` (v3.4.0-legacy; manager app
-`KernelSU_Next_v3.4.1_33333-release.apk`). SUSFS is 1.5.5, and all the
+`465490a2` (v3.4.0-legacy plus the UAPI 5 fixes; manager app
+`KernelSU_Next_v3.4.2_33355-release.apk`). SUSFS is 1.5.5, and all the
 cgroup/netfilter/macvlan options Docker and DroidSpaces need are enabled.
 
 ## What is in the repository
