@@ -10,7 +10,7 @@
 #
 # Requirements: toolchain/ (clang 11.1.0-6 + binutils 2.38, see scripts/env.sh) --
 # or the docker image, which bakes the toolchain in (docker/run.sh),
-# src/kernel/ patched by scripts/patch_source.py + scripts/apply_ksu_susfs.py,
+# src/kernel/ patched by scripts/patch_source.py + patches/ksu-next-port.diff,
 # configs/running.config, artifacts/boot_stock_device.img.
 #
 # Enforcing/permissive is a *source* toggle (scripts/patch_permissive.py), not a
@@ -21,6 +21,11 @@
 
 SHELL   := /bin/bash
 JOBS    ?= 16
+
+# The variants share one source tree (scripts/patch_permissive.py rewrites SELinux
+# sources in it), so they must never build concurrently -- not even when someone
+# runs `make -jN images`.  The compilation itself is parallelised in build.sh.
+.NOTPARALLEL:
 export JOBS
 
 VARIANTS := noroot ksu ksu-susfs ksu-droidspaces ksu-droidspaces-susfs
@@ -77,7 +82,7 @@ check:
 list:
 	@echo "variant              root  susfs  docker  notes"
 	@echo "noroot               -     -      -       stock feature set, no KernelSU"
-	@echo "ksu                  yes   -      -       KernelSU v3.3.1 (uapi 5)"
+	@echo "ksu                  yes   -      -       KernelSU-Next v3.4.0-legacy"
 	@echo "ksu-susfs            yes   full   -       + SUS_MOUNT, auto-add (TRY_UMOUNT n/a)"
 	@echo "ksu-droidspaces      yes   -      yes     cgroups/sysvipc/netfilter/macvlan"
 	@echo "ksu-droidspaces-susfs yes  part.  yes     SUSFS without SUS_MOUNT/try_umount"

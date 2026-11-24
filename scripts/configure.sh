@@ -42,15 +42,18 @@ make O="$OUT" ARCH=arm64 CC=clang HOSTCC=gcc olddefconfig
 # --- common -----------------------------------------------------------------
 ./scripts/config --file "$OUT/.config" -d RELOCATABLE -d RANDOMIZE_BASE
 
-# --- KernelSU ---------------------------------------------------------------
+# --- KernelSU-Next ----------------------------------------------------------
+# KSU_KPROBES_HOOK is the least invasive hook mode on this 4.19 vendor tree: it
+# needs KPROBES/KRETPROBES and HAVE_SYSCALL_TRACEPOINTS (both available) and does
+# not require manual ksu_handle_* call sites in the kernel sources.  The
+# alternative modes are KSU_MANUAL_HOOK (needs those call sites) and
+# KSU_SYSCALL_TABLE_HOOK (patches the syscall table at runtime).
 if [ "$VARIANT" != "noroot" ]; then
   ./scripts/config --file "$OUT/.config" \
     -e KPROBES -e KRETPROBES -e KPROBE_EVENTS -d KPROBES_SANITY_TEST \
-    -e KSU -e KSU_HACK_ARM64_BRANCH_LINK -e KSU_LSM_SECURITY_HOOKS \
-    -e KSU_FEATURE_ADBROOT -e KSU_HEURISTIC_IN_TREE_BUILD \
-    -d KSU_DEBUG -d KSU_TAMPER_SYSCALL_TABLE -d KSU_HOSTSREDIRECT \
-    -d KSU_ENABLE_FULL_UID_CHECKS -d KSU_THRONE_TRACKER_ALWAYS_THREADED \
-    -d KSU_NOPRINTK -d KSU_SHELL_HAS_SU_ALWAYS
+    -e KSU -e KSU_KPROBES_HOOK -d KSU_MANUAL_HOOK -d KSU_SYSCALL_TABLE_HOOK \
+    -d KSU_DEBUG -d KSU_DISABLE_MANAGER -d KSU_DISABLE_POLICY \
+    -d KSU_ALLOWLIST_WORKAROUND
 else
   ./scripts/config --file "$OUT/.config" -d KSU -d KSU_SUSFS \
     -d KPROBES -d KRETPROBES -d KPROBE_EVENTS

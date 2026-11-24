@@ -21,18 +21,22 @@ open-source release page for the DBY-W09 (HarmonyOS 4.0.0 kernel source), then:
 scripts/fetch_sources.sh          # or: DBY_TARBALL=/path/to/tarball scripts/fetch_sources.sh
 ```
 
-## KernelSU
+## KernelSU-Next (non-GKI `legacy` branch)
 
 | Item | Value |
 |---|---|
-| Repository | https://github.com/backslashxx/KernelSU |
-| Commit | `b1365d093208a4ab37a6045f0ab0d89977fad637` |
-| Tag | `v3.3.1` (`KernelSU v3.3.1+`, UAPI 5) |
+| Repository | https://github.com/KernelSU-Next/KernelSU-Next |
+| Branch | `legacy` (non-GKI: manual / kprobes / syscall-table hook modes) |
+| Commit | `e5f5ec998de88b9fc43c62cff8f7ae12d3f4800a` |
+| Tag | `v3.4.0-legacy` (the kernel reports version `33327`) |
+| Manager app | `KernelSU_Next_v3.4.1_33333-release.apk`, package `com.rifsxd.ksunext` |
+| Port patch | `patches/ksu-next-port.diff` (SUSFS glue, Kconfig, one 4.19 compat fix) |
 | License | GPL-2.0 |
 
-Manager app used for testing: `KernelSU_v3.3.1_32680-release.apk` (official
-signature). The kernel only accepts a manager whose UAPI matches the in-tree
-KernelSU.
+The previous upstream, `backslashxx/KernelSU`, was deleted (404) in November
+2026; the now-unmaintained xxKSU images still in `artifacts.bak/` were built
+from its `b1365d09` commit. SUSFS is unchanged at 1.5.5 — only the KSU-side
+glue moved, see `patches/ksu-next-port.diff`.
 
 ## SUSFS
 
@@ -41,10 +45,17 @@ KernelSU.
 | Upstream | https://github.com/simonpunk/susfs4ksu |
 | Branch | `kernel-4.19` |
 | Version | 1.5.5 |
-| In-tree form | `patches/susfs-kernel.diff` (kernel side) + `patches/ksu-susfs.diff` (KernelSU side) |
+| In-tree form | `patches/susfs-kernel.diff` (kernel side) + `patches/ksu-next-port.diff` (KernelSU side) |
 
-`susfs-kernel.diff` is applied with `patch -p1`; `ksu-susfs.diff` is a git diff
-against the pinned KernelSU commit and is applied with `git apply`.
+`susfs-kernel.diff` is applied with `patch -p1`; `ksu-next-port.diff` is a git
+diff against the pinned KernelSU-Next commit (SUSFS Kconfig menu, `susfs_init()`
+call, the two SELinux domain wrappers, and the `strscpy_pad` 4.19 compat fix) and
+is applied with `patch -p1` as well.
+
+Note: the upstream SUSFS repo was deleted on GitHub as well; the patched tree it
+produced is snapshotted here. It is still mirrored on GitLab
+(`https://gitlab.com/simonpunk/susfs4ksu`, branch `kernel-4.19`), whose 4.19
+branch is older than the 1.5.5 snapshot in this repo.
 
 Additional local fixups carried by the patches:
 

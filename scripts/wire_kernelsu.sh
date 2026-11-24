@@ -1,20 +1,20 @@
 #!/bin/bash
-# Wire a KernelSU checkout into the vendor kernel tree (idempotent).
+# Wire the KernelSU-Next checkout into the vendor kernel tree (idempotent).
 #
 #   scripts/wire_kernelsu.sh [KERNEL_TREE]
 #
-# Does exactly what KernelSU/kernel/setup.sh does, but without cloning or
+# Does exactly what KernelSU-Next/kernel/setup.sh does, but without cloning or
 # pulling, so the checkout stays pinned:
-#   drivers/kernelsu            -> ../KernelSU/kernel
+#   drivers/kernelsu            -> ../KernelSU-Next/kernel
 #   drivers/Makefile            += obj-$(CONFIG_KSU) += kernelsu/
 #   drivers/Kconfig             += source "drivers/kernelsu/Kconfig"
 set -euo pipefail
 WS=$(cd "$(dirname "$0")/.." && pwd)
 K=${1:-$WS/src/kernel}
 
-[ -d "$K/KernelSU/kernel" ] || { echo "error: $K/KernelSU is missing" >&2; exit 1; }
+[ -d "$K/KernelSU-Next/kernel" ] || { echo "error: $K/KernelSU-Next is missing" >&2; exit 1; }
 
-ln -sfn ../KernelSU/kernel "$K/drivers/kernelsu"
+ln -sfn ../KernelSU-Next/kernel "$K/drivers/kernelsu"
 
 grep -q 'obj-$(CONFIG_KSU) += kernelsu/' "$K/drivers/Makefile" 2>/dev/null ||
     printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> "$K/drivers/Makefile"

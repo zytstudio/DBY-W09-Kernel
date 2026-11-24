@@ -1,0 +1,2 @@
+# Unified diffs must keep their leading space/context whitespace as-is.
+patches/*.diff -whitespace

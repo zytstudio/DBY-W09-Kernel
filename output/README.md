@@ -20,8 +20,10 @@ ramdisk / DTB / cmdline / os_version 与设备原厂镜像一致（`make check` 
 | `boot_ksu-droidspaces-susfs_enforcing.img` | ✓ | 部分 | ✓ | Enforcing |
 | `boot_ksu-droidspaces-susfs_permissive.img` | ✓ | 部分 | ✓ | 第 20 秒切 Permissive |
 
-- root / SUSFS 来自 KernelSU v3.3.1（UAPI 5）；管理器用官方
-  `KernelSU_v3.3.1_32680-release.apk`。
+- root / SUSFS 来自 KernelSU-Next `legacy` 分支（v3.4.0-legacy）；管理器用
+  `KernelSU_Next_v3.4.1_33333-release.apk`（包名 `com.rifsxd.ksunext`）。
+  旧包的 `KernelSU_v3.3.1_32680-release.apk` 是已删除的 backslashxx/KernelSU
+  的 manager，与本内核不兼容。
 - 变体 3 的 SUSFS 含 `SUS_MOUNT` + 自动隐藏；变体 5 关闭 `SUS_MOUNT`
   （与 DroidSpaces 的 bind mount 冲突）。两者都不含 `TRY_UMOUNT`
   （KernelSU fork 未导出对应内部函数）。

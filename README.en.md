@@ -10,8 +10,10 @@ release. It produces **10 boot images**:
   KernelSU+Docker (DroidSpaces) / KernelSU+Docker+SUSFS;
 - each set comes in **enforcing** and **permissive** SELinux flavours.
 
-KernelSU is [backslashxx/KernelSU](https://github.com/backslashxx/KernelSU)
-pinned at `b1365d09` (v3.3.1 / UAPI 5), SUSFS is 1.5.5, and all the
+KernelSU is the `legacy` (non-GKI) branch of
+[KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next), pinned at
+`e5f5ec9` (v3.4.0-legacy; manager app
+`KernelSU_Next_v3.4.1_33333-release.apk`). SUSFS is 1.5.5, and all the
 cgroup/netfilter/macvlan options Docker and DroidSpaces need are enabled.
 
 ## What is in the repository

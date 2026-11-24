@@ -2,11 +2,11 @@
 # Fetch and prepare everything needed to build the DBY-W09 kernel.
 #
 #   1. extract the official Huawei open-source tarball into src/kernel
-#   2. clone the pinned KernelSU fork into src/kernel/KernelSU
+#   2. clone the pinned KernelSU-Next checkout into src/kernel/KernelSU-Next
 #   3. wire KernelSU into the kernel build
 #   4. apply the compile fixes (scripts/patch_source.py)
 #   5. apply the SUSFS 1.5.5 kernel patch + the namespace/header fixups
-#   6. apply the KernelSU-side SUSFS patch
+#   6. apply the KernelSU-Next side SUSFS/port patch
 #   7. apply the msm_gem_fault fix (container/Anland hang)
 #
 # Usage:
@@ -22,7 +22,8 @@
 #   DBY_TARBALL   path to DBY-W09_HarmonyOS4.0.0_opensource.tar.gz
 #                 (default: ./DBY-W09_HarmonyOS4.0.0_opensource.tar.gz)
 #   DBY_SKIP_SHA  set to 1 to skip the tarball sha256 check
-#   KSU_URL       KernelSU git remote (default backslashxx/KernelSU)
+#   KSU_URL       KernelSU git remote (default KernelSU-Next/KernelSU-Next)
+#   KSU_BRANCH    branch to clone (default legacy, the non-GKI branch)
 #   KSU_COMMIT    pinned KernelSU commit
 #   KSU_DIR       local KernelSU tree to copy instead of cloning
 #   KSU_TARBALL   offline KernelSU archive instead of cloning (a single
@@ -47,10 +48,11 @@ done
 
 TARBALL=${DBY_TARBALL:-$WS/DBY-W09_HarmonyOS4.0.0_opensource.tar.gz}
 SHA256=52c38060cf2990e44bbc556f39271f6e97af90777a300165443946aa97c72e5f
-KSU_URL=${KSU_URL:-https://github.com/backslashxx/KernelSU}
-KSU_COMMIT=${KSU_COMMIT:-b1365d093208a4ab37a6045f0ab0d89977fad637}
+KSU_URL=${KSU_URL:-https://github.com/KernelSU-Next/KernelSU-Next}
+KSU_BRANCH=${KSU_BRANCH:-legacy}
+KSU_COMMIT=${KSU_COMMIT:-e5f5ec998de88b9fc43c62cff8f7ae12d3f4800a}
 KERNEL=$WS/src/kernel
-KSU=$KERNEL/KernelSU
+KSU=$KERNEL/KernelSU-Next
 MARKER=$KERNEL/.dby_prepared
 
 say() { printf '\n== %s\n' "$*"; }
@@ -77,22 +79,22 @@ verify_prepared() {
   return 0
 }
 
-apply() {
-  local p=$1 log=$WS/.cache/patch-dryrun.log
-  if patch -p1 -R --dry-run -s -d "$KERNEL" < "$WS/$p" >/dev/null 2>&1; then
+apply() {  # apply PATCH [DIR]   (DIR defaults to the kernel tree)
+  local p=$1 d=${2:-$KERNEL} log=$WS/.cache/patch-dryrun.log
+  if patch -p1 -R --dry-run -s -d "$d" < "$WS/$p" >/dev/null 2>&1; then
     echo "   $p (already applied)"
     return 0
   fi
   echo "   $p"
   # Dry run first so a partially applicable patch aborts with a readable
   # report instead of leaving .rej files scattered over the tree.
-  if ! patch -p1 -N --dry-run -d "$KERNEL" < "$WS/$p" > "$log" 2>&1; then
+  if ! patch -p1 -N --dry-run -d "$d" < "$WS/$p" > "$log" 2>&1; then
     echo "error: $p does not apply cleanly to src/kernel:" >&2
     grep -E 'Hunk #[0-9]+ (FAILED|succeeded)|^patching file' "$log" >&2 || true
     echo "       The tree is not pristine. Re-run with --force to rebuild it." >&2
     exit 1
   fi
-  patch -p1 -N -s -d "$KERNEL" < "$WS/$p"
+  patch -p1 -N -s -d "$d" < "$WS/$p"
 }
 
 say "1/7 kernel source"
@@ -161,8 +163,8 @@ elif [ -n "${KSU_TARBALL:-}" ]; then
   rm -rf "$tmpk"
 elif [ ! -d "$KSU/.git" ]; then
   rm -rf "$KSU"
-  echo "   cloning $KSU_URL"
-  git clone "$KSU_URL" "$KSU" || {
+  echo "   cloning $KSU_URL ($KSU_BRANCH)"
+  git clone --branch "$KSU_BRANCH" "$KSU_URL" "$KSU" || {
     echo "error: could not clone $KSU_URL" >&2
     echo "       behind a firewall/proxy? Either" >&2
     echo "         KSU_URL=<mirror> scripts/fetch_sources.sh" >&2
@@ -174,7 +176,7 @@ elif [ ! -d "$KSU/.git" ]; then
   }
 fi
 if [ -d "$KSU/.git" ]; then
-  git -C "$KSU" fetch --all --tags --quiet || true
+  git -C "$KSU" fetch --all --tags --quiet || true  # KSU_BRANCH is not needed here
   git -C "$KSU" checkout -f "$KSU_COMMIT" || {
     echo "error: cannot check out $KSU_COMMIT in $KSU" >&2
     exit 1
@@ -206,8 +208,8 @@ else
   touch "$MARKER"
 fi
 
-say "6/7 KernelSU-side SUSFS patch"
-python3 "$WS/scripts/apply_ksu_susfs.py" "$KSU"
+say "6/7 KernelSU-Next port: SUSFS prctl glue, Kconfig, one 4.19 compat fix"
+apply patches/ksu-next-port.diff "$KSU"
 
 say "7/7 msm_gem_fault fix"
 python3 "$WS/scripts/patch_msm_fault.py" --srcdir "$KERNEL"

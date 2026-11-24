@@ -75,13 +75,13 @@ scripts/fetch_sources.sh --force
 ```sh
 tar xzf DBY-W09_HarmonyOS4.0.0_opensource.tar.gz -C src Code_Opensource/kernel
 mv src/Code_Opensource/kernel src/kernel
-git clone https://github.com/backslashxx/KernelSU src/kernel/KernelSU
-git -C src/kernel/KernelSU checkout b1365d093208a4ab37a6045f0ab0d89977fad637
+git clone -b legacy https://github.com/KernelSU-Next/KernelSU-Next src/kernel/KernelSU-Next
+git -C src/kernel/KernelSU-Next checkout e5f5ec998de88b9fc43c62cff8f7ae12d3f4800a
 scripts/wire_kernelsu.sh
 python3 scripts/patch_source.py src/kernel
 patch -p1 -d src/kernel < patches/susfs-kernel.diff
 patch -p1 -d src/kernel < patches/susfs-kernel-fixes.diff
-python3 scripts/apply_ksu_susfs.py src/kernel/KernelSU
+patch -p1 -d src/kernel/KernelSU-Next < patches/ksu-next-port.diff
 python3 scripts/patch_msm_fault.py src/kernel
 ```
 
@@ -299,6 +299,7 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | `docker build` 报 `dial tcp ... i/o timeout` 访问 `registry-1.docker.io` | 拉不到基础镜像；用镜像仓库：`DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build` |
 | `docker build` 卡在 `apt-get` 或下载 deb | 换国内镜像：`DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
 | 容器里 clone KernelSU 失败 | 把 KernelSU 树放进仓库，`KSU_DIR=./KSU docker/run.sh`（或 `KSU_TARBALL=./xxx.tar.gz`） |
+| 刷了 KSUN 内核后 manager 提示内核不受支持 / 打不开 | 旧 xxKSU manager（`me.weishu.kernelsu`）看不到新内核，需要装 `KernelSU_Next_v3.4.1_33333-release.apk`（`com.rifsxd.ksunext`）；两个包名不冲突，可以先装新的再删旧的 |
 | 容器报 `no toolchain at /opt/dby-toolchain` | 用的不是本项目构建的镜像（`DBY_DOCKER_IMAGE` 指错了），或者镜像不是用 `docker/Dockerfile` 构建的 |
 | Fedora / SELinux 上容器里读不到 `/work` | `DBY_DOCKER_ARGS='--security-opt label=disable' docker/run.sh ...` |
 
@@ -316,5 +317,5 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
   生成头文件的 mtime，压缩后大小会变，后面紧跟的 `.rodata` 也随之平移几 KB）。
   同一构建树里的**增量**重编只差版本串。不想要后者可以 `-d IKHEADERS` 重配。
 - 关键补丁快照：`patches/susfs-kernel.diff`、`patches/susfs-kernel-fixes.diff`、
-  `patches/ksu-susfs.diff`；permissive 的两种改法由 `scripts/patch_permissive.py`
+  `patches/ksu-next-port.diff`；permissive 的两种改法由 `scripts/patch_permissive.py`
   在构建时施加（`force` / `delay`，见 §5）。

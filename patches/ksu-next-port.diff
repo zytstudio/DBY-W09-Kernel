@@ -1,9 +1,9 @@
 diff --git a/kernel/Kconfig b/kernel/Kconfig
-index ed3165b9..e863fbad 100644
+index 946966dc..54adce88 100644
 --- a/kernel/Kconfig
 +++ b/kernel/Kconfig
-@@ -132,3 +132,135 @@ config KSU_HEURISTIC_IN_TREE_BUILD
- 	default y
+@@ -73,3 +73,135 @@ config KSU_SYSCALL_TABLE_HOOK
+ endchoice
  
  endmenu
 +
@@ -138,36 +138,56 @@ index ed3165b9..e863fbad 100644
 +      - Please be reminded that process with open access to the target and redirected path can be detected.
 +
 +endmenu
-diff --git a/kernel/ksu.c b/kernel/ksu.c
-index c4c81203..b028943b 100644
---- a/kernel/ksu.c
-+++ b/kernel/ksu.c
-@@ -19,6 +19,9 @@
- #endif // MODULE
+diff --git a/kernel/compat/kernel_compat.h b/kernel/compat/kernel_compat.h
+index f3506c27..bb5a5147 100644
+--- a/kernel/compat/kernel_compat.h
++++ b/kernel/compat/kernel_compat.h
+@@ -97,7 +97,13 @@ static inline void ksu_kvfree(const void *buf)
+ // https://elixir.bootlin.com/linux/v4.14.222/source/lib/string.c#L282
+ static inline ssize_t __strscpy_pad(char *dest, const char *src, size_t count)
+ {
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 222)
++    /*
++     * strscpy_pad() only exists in mainline >= 5.6 (and in 4.14.222+
++     * stable backports).  This Huawei 4.19.157 tree does not have it, so
++     * key off the version that actually introduced it instead of the
++     * 4.14.222 backport.
++     */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+     return strscpy_pad(dest, src, count);
+ #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 3, 0)
+     ssize_t res = strscpy(dest, src, count);
+diff --git a/kernel/core/init.c b/kernel/core/init.c
+index e6562de1..bde145c2 100644
+--- a/kernel/core/init.c
++++ b/kernel/core/init.c
+@@ -25,6 +25,10 @@
+ #include "feature/shell_su_adb_only.h"
+ #include "feature/adb_root.h"
  
- #include "kernel_includes.h"
 +#ifdef CONFIG_KSU_SUSFS
 +#include <linux/susfs.h>
 +#endif
++
+ extern void __init ksu_lsm_hook_init(void);
+ extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+ 					void *argv, void *envp, int *flags);
+@@ -103,6 +107,9 @@ module_param_named(bundled, ksu_bundled, bool, 0);
  
- // selinux includes
- #include "avc_ss.h"
-@@ -226,6 +229,9 @@ static inline void ksu_print_build_info(void)
- static int __init kernelsu_init(void)
+ int __init kernelsu_init(void)
  {
- 	ksu_print_build_info();
 +#ifdef CONFIG_KSU_SUSFS
 +	susfs_init();
 +#endif
- 
- #ifdef CONFIG_KSU_DEBUG
- 	pr_alert("*************************************************************");
+ #ifdef KSU_MANAGER_PACKAGE
+ 	pr_info("welcome to KernelSU version " __stringify(KERNEL_SU_VERSION) ", package name " KSU_MANAGER_PACKAGE "\n");
+ #else
 diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
-index 17b24164..e681c4c4 100644
+index 258ca819..14d1819b 100644
 --- a/kernel/selinux/selinux.c
 +++ b/kernel/selinux/selinux.c
-@@ -226,6 +226,19 @@ bool is_adbd(const struct cred *cred)
- 	return is_sid_match(cred, cached_adbd_sid, ADBD_CONTEXT);
+@@ -260,6 +260,19 @@ bool is_zygote(const struct cred *cred)
+     return is_sid_match(cred, cached_zygote_sid, ZYGOTE_CONTEXT);
  }
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
@@ -183,6 +203,6 @@ index 17b24164..e681c4c4 100644
 +}
 +#endif
 +
- void escape_to_root_for_adb_root(void)
+ bool is_adbd(const struct cred *cred)
  {
- 	struct cred *cred = prepare_creds();
+     return is_sid_match(cred, cached_adbd_sid, ADBD_CONTEXT);

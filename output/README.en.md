@@ -21,8 +21,10 @@ ramdisk / DTB / cmdline / os_version are identical to the stock image
 | `boot_ksu-droidspaces-susfs_enforcing.img` | ✓ | partial | ✓ | Enforcing |
 | `boot_ksu-droidspaces-susfs_permissive.img` | ✓ | partial | ✓ | Permissive at 20 s |
 
-- root / SUSFS come from KernelSU v3.3.1 (UAPI 5); the manager app is the
-  official `KernelSU_v3.3.1_32680-release.apk`.
+- root / SUSFS come from the KernelSU-Next `legacy` branch (v3.4.0-legacy); the
+  manager app is `KernelSU_Next_v3.4.1_33333-release.apk` (package
+  `com.rifsxd.ksunext`). The old `KernelSU_v3.3.1_32680-release.apk` belongs to
+  the deleted backslashxx/KernelSU fork and is not compatible with this kernel.
 - Variant 3's SUSFS includes `SUS_MOUNT` plus automatic hiding; variant 5
   disables `SUS_MOUNT` (it conflicts with DroidSpaces bind mounts). Neither
   includes `TRY_UMOUNT` (the KernelSU fork does not export the internal
