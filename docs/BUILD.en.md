@@ -78,6 +78,14 @@ minutes) and runs every step again. Build output in `out/`, `artifacts/` and
 `output/` is left alone, and the extraction scratch directory lives in
 `.cache/`, not `/tmp`.
 
+**Building modifies `src/kernel`.** KernelSU-Next's `kernel/Kbuild` sed-patches
+a few old-kernel backports while the Makefile is parsed (`path_umount` /
+`can_umount` in `fs/namespace.c`, `filter_count` in `include/linux/seccomp.h`,
+`selinux_inode()` / `selinux_cred()` under `security/selinux/`, ...), so after
+the first build the tree no longer matches the pristine extraction. Later builds
+are fine (every edit is guarded by a grep and applied once); use
+`scripts/fetch_sources.sh --force` when you want a pristine tree or a `git diff`.
+
 `fetch_sources.sh` is equivalent to running the following by hand, which is
 useful when comparing or debugging:
 
@@ -331,6 +339,9 @@ or `userdata`.
 | `docker build` fails with `dial tcp ... i/o timeout` on `registry-1.docker.io` | The base image cannot be pulled; use a registry mirror: `DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build` |
 | `docker build` stalls in `apt-get` or while downloading the debs | Use a mirror: `DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
 | Cloning KernelSU fails inside the container | Put a KernelSU tree in the repo and use `KSU_DIR=./KSU docker/run.sh` (or `KSU_TARBALL=./xxx.tar.gz`) |
+| Modules do nothing: sshd is not listening on 8022, the Droidspaces daemon is missing | Module `service.sh` scripts run in KernelSU's services stage, and ksud skips every stage on a UAPI mismatch (`logcat \| grep UAPI`). Make sure kernel and manager agree on the UAPI; our patch also runs `ksud services` on `sys.boot_completed=1` because this Huawei device never sets `nonencrypted` / `vold.decrypt`. Manual check: `su -c '/data/adb/ksud services'` |
+| `UAPI version mismatch: kernel=N, ksud=M` | Kernel and manager do not match. This repo pins a UAPI-5 kernel (`465490a2`) with manager v3.4.2 (33355); the upstream `legacy` head moved to UAPI 6, but no matching manager is released yet, so do not track it |
+| The first boot after flashing hangs on the boot animation, a reboot fixes it | Seen once (first boot after a kernel change); a reboot recovered. If it repeats, check `su -c dmesg` for a panic and use ramoops/pstore to capture the previous boot |
 | After flashing a KSUN kernel the old manager says the kernel is unsupported | The xxKSU manager (`me.weishu.kernelsu`) does not see the new kernel; install `KernelSU_Next_v3.4.2_33355-release.apk` (`com.rifsxd.ksunext`). The package names differ, so both can be installed side by side |
 | The container reports `no toolchain at /opt/dby-toolchain` | The image was not built from this project's `docker/Dockerfile` (check `DBY_DOCKER_IMAGE`) |
 | On Fedora/SELinux the container cannot read `/work` | `DBY_DOCKER_ARGS='--security-opt label=disable' docker/run.sh ...` |

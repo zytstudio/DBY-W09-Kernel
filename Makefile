@@ -83,7 +83,7 @@ list:
 	@echo "variant              root  susfs  docker  notes"
 	@echo "noroot               -     -      -       stock feature set, no KernelSU"
 	@echo "ksu                  yes   -      -       KernelSU-Next v3.4.0-legacy"
-	@echo "ksu-susfs            yes   full   -       + SUS_MOUNT, auto-add (TRY_UMOUNT n/a)"
+	@echo "ksu-susfs            yes   full   -       + SUS_MOUNT/auto-add (TRY_UMOUNT off)"
 	@echo "ksu-droidspaces      yes   -      yes     cgroups/sysvipc/netfilter/macvlan"
 	@echo "ksu-droidspaces-susfs yes  part.  yes     SUSFS without SUS_MOUNT/try_umount"
 	@echo

@@ -70,6 +70,13 @@ scripts/fetch_sources.sh --force
 `out/`、`artifacts/`、`output/` 里的构建产物不受影响。解包临时目录放在 `.cache/`，
 不会占 `/tmp`。
 
+**构建会改动 `src/kernel`。** KernelSU-Next 的 `kernel/Kbuild` 在解析阶段用 `sed`
+给老内核补几个回移（`fs/namespace.c` 的 `path_umount`/`can_umount`、
+`include/linux/seccomp.h` 的 `filter_count`、`security/selinux/` 的
+`selinux_inode()`/`selinux_cred()` 等），所以**第一次编译之后源码树就不再是解包时的样子**。
+这不影响后续构建（每个补丁都有 grep 保护、只做一次），但想拿回干净树、或者要对比
+`git diff` 时，用 `scripts/fetch_sources.sh --force` 重新解包。
+
 `fetch_sources.sh` 等价于手工执行下面这些步骤，用来对照/排错：
 
 ```sh
@@ -299,6 +306,9 @@ scripts/test_image.sh output/boot_ksu-droidspaces_permissive.img
 | `docker build` 报 `dial tcp ... i/o timeout` 访问 `registry-1.docker.io` | 拉不到基础镜像；用镜像仓库：`DBY_BASE_IMAGE=docker.m.daocloud.io/library/ubuntu:22.04 docker/run.sh --build` |
 | `docker build` 卡在 `apt-get` 或下载 deb | 换国内镜像：`DBY_APT_MIRROR=mirrors.tuna.tsinghua.edu.cn DBY_UBUNTU_ARCHIVE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu docker/run.sh --build` |
 | 容器里 clone KernelSU 失败 | 把 KernelSU 树放进仓库，`KSU_DIR=./KSU docker/run.sh`（或 `KSU_TARBALL=./xxx.tar.gz`） |
+| 模块不生效：sshd 不监听 8022、Droidspaces 守护进程没起 | 模块的 `service.sh` 由 KernelSU 的 services 阶段执行，而 `ksud` 遇到 UAPI 不匹配会整个跳过（`logcat \| grep UAPI`）。确认内核与 manager 的 UAPI 一致；本仓库的补丁还额外在 `sys.boot_completed=1` 调 `ksud services`（这台华为设备不设 `nonencrypted`/`vold.decrypt`，上游触发器不响）。手动验证：`su -c '/data/adb/ksud services'` |
+| `UAPI version mismatch: kernel=N, ksud=M` | 内核与 manager 版本不配套：本仓库钉在 UAPI 5 的内核（`465490a2`），manager 用 v3.4.2 (33355)。上游 `legacy` 分支头已改成 UAPI 6，但还没有对应 manager，别直接跟到最新 |
+| 刚刷完第一次卡在开机动画，重启后正常 | 观察过一次（换内核后首次启动），重启即恢复。如果反复出现，先 `su -c dmesg` 看有没有 panic，再用 ramoops/pstore 抓上一轮启动日志 |
 | 刷了 KSUN 内核后 manager 提示内核不受支持 / 打不开 | 旧 xxKSU manager（`me.weishu.kernelsu`）看不到新内核，需要装 `KernelSU_Next_v3.4.2_33355-release.apk`（`com.rifsxd.ksunext`）；两个包名不冲突，可以先装新的再删旧的 |
 | 容器报 `no toolchain at /opt/dby-toolchain` | 用的不是本项目构建的镜像（`DBY_DOCKER_IMAGE` 指错了），或者镜像不是用 `docker/Dockerfile` 构建的 |
 | Fedora / SELinux 上容器里读不到 `/work` | `DBY_DOCKER_ARGS='--security-opt label=disable' docker/run.sh ...` |

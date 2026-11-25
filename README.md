@@ -14,6 +14,9 @@ KernelSU 用 [KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next) 的
 `KernelSU_Next_v3.4.2_33355-release.apk`），SUSFS 1.5.5，Docker/DroidSpaces 需要的
 cgroup/netfilter/macvlan 选项全开。
 
+分支头已经升到 UAPI 6，但还没有配套的 manager，所以钉在最后一个 UAPI 5 的提交上；
+升级前先看 `docs/BUILD.md` §8 的「UAPI version mismatch」那条。
+
 ## 仓库里有什么
 
 | 目录 | 内容 |

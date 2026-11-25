@@ -16,6 +16,10 @@ KernelSU is the `legacy` (non-GKI) branch of
 `KernelSU_Next_v3.4.2_33355-release.apk`). SUSFS is 1.5.5, and all the
 cgroup/netfilter/macvlan options Docker and DroidSpaces need are enabled.
 
+The branch head has moved to UAPI 6 without a matching manager yet, which is why
+the pin stops at the last UAPI 5 commit; see the "UAPI version mismatch" row in
+`docs/BUILD.en.md` section 8 before bumping it.
+
 ## What is in the repository
 
 | Path | Contents |

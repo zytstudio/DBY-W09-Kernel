@@ -42,7 +42,14 @@ UAPI 6 is released.
 
 The previous upstream, `backslashxx/KernelSU`, was deleted (404) in November
 2026; the now-unmaintained xxKSU images still in `artifacts.bak/` were built
-from its `b1365d09` commit. SUSFS is unchanged at 1.5.5 — only the KSU-side
+from its `b1365d09` commit.
+
+Pinning note: `0b17f242` (2026-10-17) raised `KERNEL_SU_UAPI_VERSION` to 6, and
+ksud refuses every stage unless kernel and manager agree, so this checkout stops
+one commit earlier. `KernelSU-Next/kernel/Kbuild` also sed-patches a few kernel
+files at build time (`fs/namespace.c`, `include/linux/seccomp.h`,
+`security/selinux/*`); `scripts/fetch_sources.sh --force` restores a pristine
+tree, normal rebuilds are idempotent. SUSFS is unchanged at 1.5.5 — only the KSU-side
 glue moved, see `patches/ksu-next-port.diff`.
 
 ## SUSFS

@@ -26,7 +26,7 @@ ramdisk / DTB / cmdline / os_version 与设备原厂镜像一致（`make check` 
   的 manager，与本内核不兼容。
 - 变体 3 的 SUSFS 含 `SUS_MOUNT` + 自动隐藏；变体 5 关闭 `SUS_MOUNT`
   （与 DroidSpaces 的 bind mount 冲突）。两者都不含 `TRY_UMOUNT`
-  （KernelSU fork 未导出对应内部函数）。
+  （KernelSU-Next 没有 `ksu_try_umount()`，这个选项链接不过）。
 - 内核额外修了华为 msm 显示驱动的 `msm_gem_fault` 空指针：容器里 Anland/llvmpipe
   mmap 导入的 dma-buf 不再导致设备重启（`scripts/patch_msm_fault.py`）。
 - 「第 20 秒」是内核自己翻转，与用户态无关；`dmesg | grep DBY_FORCE_PERMISSIVE`

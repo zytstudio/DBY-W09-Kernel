@@ -74,9 +74,9 @@ fi
 # --- SUSFS ------------------------------------------------------------------
 # (3) ksu-susfs: full mount-hiding feature set. HAS_MAGIC_MOUNT (5ec1cff magic
 #     mount) and SUS_OVERLAYFS (legacy KSU, "no auto hide") stay off by design:
-#     our KSU is backslashxx in-tree and we enable the auto-add/auto-hide paths
-#     instead. TRY_UMOUNT is off too: it needs KernelSU's internal try_umount()
-#     which this fork does not export (susfs_try_umount_all would be a no-op).
+#     KernelSU-Next is built in-tree and we enable the auto-add/auto-hide paths
+#     instead. TRY_UMOUNT stays off too: susfs needs ksu_try_umount(), which
+#     KernelSU-Next does not provide (susfs_try_umount_all would not link).
 # (5) ksu-droidspaces-susfs: same minus the mount-hiding features, which are
 #     incompatible with DroidSpaces' own bind mounts (verified on hardware).
 if [ "$VARIANT" = "ksu-susfs" ]; then
@@ -107,5 +107,30 @@ elif [ "$VARIANT" = "ksu" ] || [ "$VARIANT" = "ksu-droidspaces" ]; then
 fi
 
 make O="$OUT" ARCH=arm64 CC=clang HOSTCC=gcc olddefconfig
+
+# Sanity check: Kconfig silently drops symbols whose dependencies are missing
+# (e.g. KSU needs KPROBES + EXT4_FS), and KernelSU-Next's Kbuild then aborts with
+# "No hooks were defined" much later -- or worse, builds a kernel without root.
+if [ "$VARIANT" != "noroot" ]; then
+  for sym in CONFIG_KSU CONFIG_KSU_KPROBES_HOOK; do
+    grep -q "^$sym=y" "$OUT/.config" || {
+      echo "error: $sym did not end up =y in $OUT/.config" >&2
+      echo "       its Kconfig dependencies are not met by configs/running.config;" >&2
+      echo "       see 'depends on' in src/kernel/KernelSU-Next/kernel/Kconfig" >&2
+      exit 1
+    }
+  done
+  case "$VARIANT" in
+    ksu-susfs|ksu-droidspaces-susfs)
+      grep -q '^CONFIG_KSU_SUSFS=y' "$OUT/.config" || {
+        echo "error: CONFIG_KSU_SUSFS is not set, is patches/ksu-next-port.diff applied?" >&2
+        exit 1
+      } ;;
+  esac
+  ksu_uapi=$(sed -n 's/^#define KERNEL_SU_UAPI_VERSION \([0-9]*\).*/\1/p' \
+    "$WS/src/kernel/KernelSU-Next/uapi/supercall.h" 2>/dev/null | head -1)
+  echo "KernelSU-Next UAPI: ${ksu_uapi:-unknown} (manager must speak the same version)"
+fi
+
 echo "configured $OUT for variant $VARIANT"
 grep -E '^CONFIG_(KSU|KSU_SUSFS|KPROBES|SYSVIPC|RELOCATABLE|RANDOMIZE_BASE)=' "$OUT/.config" || true

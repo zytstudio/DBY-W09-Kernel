@@ -27,8 +27,8 @@ ramdisk / DTB / cmdline / os_version are identical to the stock image
   the deleted backslashxx/KernelSU fork and is not compatible with this kernel.
 - Variant 3's SUSFS includes `SUS_MOUNT` plus automatic hiding; variant 5
   disables `SUS_MOUNT` (it conflicts with DroidSpaces bind mounts). Neither
-  includes `TRY_UMOUNT` (the KernelSU fork does not export the internal
-  function).
+  includes `TRY_UMOUNT` (KernelSU-Next has no `ksu_try_umount()`, so the
+  option does not link).
 - The kernel also carries a fix for the NULL dereference in Huawei's msm
   display driver (`msm_gem_fault`): inside a container, Anland/llvmpipe mmaps
   imported dma-bufs, which used to reboot the device

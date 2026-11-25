@@ -138,6 +138,12 @@ else
 fi
 
 say "2/7 KernelSU (pinned $KSU_COMMIT)"
+# Drop the pre-KernelSU-Next checkout if an older tree still has it; its upstream
+# (backslashxx/KernelSU) is gone and nothing references it any more.
+if [ -d "$KERNEL/KernelSU" ] && [ "$KSU" != "$KERNEL/KernelSU" ]; then
+  echo "   removing the old xxKSU checkout at $KERNEL/KernelSU"
+  rm -rf "$KERNEL/KernelSU"
+fi
 if [ -n "${KSU_DIR:-}" ]; then
   echo "   copying KernelSU from $KSU_DIR"
   [ -d "$KSU_DIR/kernel" ] || { echo "error: $KSU_DIR is not a KernelSU tree" >&2; exit 1; }
